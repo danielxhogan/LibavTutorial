@@ -1,4 +1,4 @@
-cd build && ninja && ./remux "../videos/inputs/h264_mp3.mp4" "../videos/outputs/h264_mp3.mkv"
+# cd build && ninja && ./remux "../videos/inputs/h264_mp3.mp4" "../videos/outputs/h264_mp3.mkv"
 # cd build && ninja && ./remux "../videos/inputs/h264_mp3.mp4" "../videos/outputs/h264_mp3.mov"
 # cd build && ninja && ./remux "../videos/inputs/h264_mp3.mp4" "../videos/outputs/h264_mp3.wmv"
 # cd build && ninja && ./remux "../videos/inputs/h264_mp3.mp4" "../videos/outputs/h264_mp3.flv"
@@ -61,6 +61,7 @@ cd build && ninja && ./remux "../videos/inputs/h264_mp3.mp4" "../videos/outputs/
 # cd build && ninja && ./remux "../videos/inputs/h264_mp3.wmv" "../videos/outputs/h264_mp3.mkv"
 # cd build && ninja && ./remux "../videos/inputs/h264_mp3.wmv" "../videos/outputs/h264_mp3.mov"
 # cd build && ninja && ./remux "../videos/inputs/h264_mp3.wmv" "../videos/outputs/h264_mp3.flv"
+# cd build && ninja && ./remux "../videos/inputs/h264_mp3.wmv" "../videos/outputs/h264_mp3.avi"
 
 # cd build && ninja && ./remux "../videos/inputs/h264_mp3.avi" "../videos/outputs/h264_mp3.mp4"
 # cd build && ninja && ./remux "../videos/inputs/h264_mp3.avi" "../videos/outputs/h264_mp3.mkv"

@@ -68,14 +68,30 @@ source ~/.zshrc
 #   -map_chapters -1 \
 #   -metadata title="vp9_opus.webm" "./videos/inputs/vp9_opus.webm"
 
-
-# video: theora, audio: vorbis
-taskset -c 2-11 ffmpeg \
+# video: vp9, audio: opus
+taskset -c 2-11 $HOME/ffmpeg/bin/ffmpeg \
   -i "./videos/inputs/ikkf.mkv" \
-  -map 0:v:0 -c:v libtheora -q:v 7 -g 120 \
-  -map 0:a:0 -c:a libvorbis -b:a 640k -ac 6 \
+  -map 0:v:0 -c:v libvpx-vp9 -crf 25 -quality good -g 120 \
+  -map 0:a:0 -c:a libopus -b:a 640k -ac 6 \
   -map_chapters -1 \
-  -metadata title="theora_vorbis.ogg" "./videos/inputs/theora_vorbis.ogg"
+  -metadata title="vp9_opus.mkv" "./videos/inputs/vp9_opus.mkv"
+
+
+# # video: theora, audio: vorbis
+# taskset -c 2-11 ffmpeg \
+#   -i "./videos/inputs/ikkf.mkv" \
+#   -map 0:v:0 -c:v libtheora -q:v 7 -g 120 \
+#   -map 0:a:0 -c:a libvorbis -b:a 640k -ac 6 \
+#   -map_chapters -1 \
+#   -metadata title="theora_vorbis.ogg" "./videos/inputs/theora_vorbis.ogg"
+
+# # video: theora, audio: vorbis
+# taskset -c 2-11 ffmpeg \
+#   -i "./videos/inputs/ikkf.mkv" \
+#   -map 0:v:0 -c:v libtheora -q:v 7 -g 120 \
+#   -map 0:a:0 -c:a libvorbis -b:a 640k -ac 6 \
+#   -map_chapters -1 \
+#   -metadata title="theora_vorbis.mkv" "./videos/inputs/theora_vorbis.mkv"
 
 
 # # video: h.264, audio: mp3
