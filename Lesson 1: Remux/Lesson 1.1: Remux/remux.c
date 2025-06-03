@@ -13,6 +13,7 @@
 
 #include <libavformat/avformat.h>
 #include <libavcodec/packet.h>
+#include <libavutil/timestamp.h>
 
 int main(int argc, char **argv)
 {
@@ -49,7 +50,7 @@ int main(int argc, char **argv)
     goto end;
   }
 
-  // av_dump_format(in_fmt_ctx, 0, in_filename, 0);
+  av_dump_format(in_fmt_ctx, 0, in_filename, 0);
 
   if ((ret =
     avformat_alloc_output_context2(&out_fmt_ctx, NULL, NULL, out_filename)))
@@ -74,7 +75,7 @@ int main(int argc, char **argv)
   if ((ret = avcodec_parameters_copy(out_stream->codecpar,
     in_fmt_ctx->streams[v_stream_idx]->codecpar)) < 0)
   {
-    fprintf(stderr, "failed to copy video codec parameters\n");
+    fprintf(stderr, "Failed to copy video codec parameters\n");
     goto end;
   }
   out_stream->codecpar->codec_tag = 0;
@@ -95,12 +96,12 @@ int main(int argc, char **argv)
   if ((ret = avcodec_parameters_copy(out_stream->codecpar,
     in_fmt_ctx->streams[a_stream_idx]->codecpar)) < 0)
   {
-    fprintf(stderr, "failed to copy audio codec parameters\n");
+    fprintf(stderr, "Failed to copy audio codec parameters\n");
     goto end;
   }
   out_stream->codecpar->codec_tag = 0;
 
-  // av_dump_format(out_fmt_ctx, 0, out_filename, 1);
+  av_dump_format(out_fmt_ctx, 0, out_filename, 1);
 
   if (!(pkt = av_packet_alloc())) {
     fprintf(stderr, "Failed to allocate AVPacket.\n");

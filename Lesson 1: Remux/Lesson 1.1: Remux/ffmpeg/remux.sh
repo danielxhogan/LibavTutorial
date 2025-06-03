@@ -1,4 +1,4 @@
 #!/bin/zsh
 source ~/.zshrc
 
-ffmpeg -i "./videos/og_ikkf.mkv" -c copy "./videos/ff_ikkf.mp4"
+ffmpeg -i "./videos/inputs/vp9_opus.webm" -c copy "./videos/outputs/vp9_opus.flv"
