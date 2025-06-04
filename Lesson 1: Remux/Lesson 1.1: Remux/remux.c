@@ -13,7 +13,6 @@
 
 #include <libavformat/avformat.h>
 #include <libavcodec/packet.h>
-#include <libavutil/timestamp.h>
 
 int main(int argc, char **argv)
 {
