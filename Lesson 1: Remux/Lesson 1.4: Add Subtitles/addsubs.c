@@ -18,6 +18,10 @@
 #include <libavformat/avformat.h>
 #include <libavcodec/packet.h>
 
+#define VIDEO_STREAM_IDX 0
+#define AUDIO_STREAM_IDX 1
+#define SUBTITLE_STREAM_IDX 2
+
 int copy_chapters(AVFormatContext *out_fmt_ctx, AVFormatContext *in_fmt_ctx)
 {
   AVChapter *in_chapter, *out_chapter;
@@ -236,10 +240,10 @@ int main(int argc, char **argv)
     in_stream = v_fmt_ctx->streams[pkt->stream_index];
 
     if (pkt->stream_index == v_stream_idx) {
-      pkt->stream_index = 0;
+      pkt->stream_index = VIDEO_STREAM_IDX;
     }
     else if (pkt->stream_index == a_stream_idx) {
-      pkt->stream_index = 1;
+      pkt->stream_index = AUDIO_STREAM_IDX;
     }
     else {
       av_packet_unref(pkt);
@@ -261,10 +265,10 @@ int main(int argc, char **argv)
   while ((ret = av_read_frame(s_fmt_ctx, pkt)) >= 0)
   {
     in_stream = s_fmt_ctx->streams[pkt->stream_index];
-    out_stream = out_fmt_ctx->streams[2];
+    out_stream = out_fmt_ctx->streams[SUBTITLE_STREAM_IDX];
 
     av_packet_rescale_ts(pkt, in_stream->time_base, out_stream->time_base);
-    pkt->stream_index = 2;
+    pkt->stream_index = SUBTITLE_STREAM_IDX;
     pkt->pos = -1;
 
     if ((ret = av_interleaved_write_frame(out_fmt_ctx, pkt)) < 0) {
