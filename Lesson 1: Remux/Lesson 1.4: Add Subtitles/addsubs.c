@@ -196,7 +196,7 @@ int main(int argc, char **argv)
 
   // av_dump_format(out_fmt_ctx, 0, out_filename, 1);
 
-  if ((ret = initalize_stream(&out_stream, &s_stream_idx, out_fmt_ctx, s_fmt_ctx,
+  if ((ret = initialize_stream(&out_stream, &s_stream_idx, out_fmt_ctx, s_fmt_ctx,
     AVMEDIA_TYPE_SUBTITLE)) < 0)
   {
     fprintf(stderr, "Failed to initialize subtitle stream.\n");
