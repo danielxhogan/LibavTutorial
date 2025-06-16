@@ -18,6 +18,9 @@
 #include <libavformat/avformat.h>
 #include <libavcodec/packet.h>
 
+#define VIDEO_STREAM_IDX 0
+#define AUDIO_STREAM_IDX 1
+
 int copy_chapters(AVFormatContext *out_fmt_ctx, AVFormatContext *in_fmt_ctx)
 {
   AVChapter *in_chapter, *out_chapter;
@@ -61,18 +64,19 @@ int copy_chapters(AVFormatContext *out_fmt_ctx, AVFormatContext *in_fmt_ctx)
 int initialize_stream(int *stream_idx, AVFormatContext *out_fmt_ctx,
   AVFormatContext *in_fmt_ctx, enum AVMediaType AVMEDIA_TYPE)
 {
-  int ret = 0;
+  const char *avmedia_type_string = av_get_media_type_string(AVMEDIA_TYPE);
   AVStream *stream;
+  int ret = 0;
 
   if ((ret = *stream_idx =
     av_find_best_stream(in_fmt_ctx, AVMEDIA_TYPE, -1, -1, NULL, 0)) < 0)
   {
-    fprintf(stderr, "Failed to find video stream in input file.\n");
+    fprintf(stderr, "Failed to find %s stream in input file.\n", avmedia_type_string);
     return ret;
   }
 
   if (!(stream = avformat_new_stream(out_fmt_ctx, NULL))) {
-    fprintf(stderr, "Failed to allocate video output stream.\n");
+    fprintf(stderr, "Failed to allocate %s output stream.\n", avmedia_type_string);
     ret = AVERROR(ENOMEM);
     return ret;
   }
@@ -80,7 +84,7 @@ int initialize_stream(int *stream_idx, AVFormatContext *out_fmt_ctx,
   if ((ret = avcodec_parameters_copy(stream->codecpar,
     in_fmt_ctx->streams[*stream_idx]->codecpar)) < 0)
   {
-    fprintf(stderr, "failed to copy video codec parameters\n");
+    fprintf(stderr, "failed to copy %s codec parameters\n", avmedia_type_string);
     return ret;
   }
   stream->codecpar->codec_tag = 0;
@@ -88,7 +92,7 @@ int initialize_stream(int *stream_idx, AVFormatContext *out_fmt_ctx,
   if ((ret = av_dict_copy(&stream->metadata,
     in_fmt_ctx->streams[*stream_idx]->metadata, AV_DICT_DONT_OVERWRITE)) < 0)
   {
-    fprintf(stderr, "Failed to copy video metadata.\n");
+    fprintf(stderr, "Failed to copy %s metadata.\n", avmedia_type_string);
     return ret;
   }
   return ret;
@@ -210,10 +214,10 @@ int main(int argc, char **argv)
     in_stream = v_fmt_ctx->streams[pkt->stream_index];
 
     if (pkt->stream_index == v_stream_idx) {
-      pkt->stream_index = 0;
+      pkt->stream_index = VIDEO_STREAM_IDX;
     }
     else if (pkt->stream_index == a_stream_idx) {
-      pkt->stream_index = 1;
+      pkt->stream_index = AUDIO_STREAM_IDX;
     }
     else {
       av_packet_unref(pkt);
