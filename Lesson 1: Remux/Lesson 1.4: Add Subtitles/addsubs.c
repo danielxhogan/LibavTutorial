@@ -62,12 +62,11 @@ int copy_chapters(AVFormatContext *out_fmt_ctx, AVFormatContext *in_fmt_ctx)
   return ret;
 }
 
-int initalize_stream(AVStream **stream, int *stream_idx, AVFormatContext *out_fmt_ctx,
+int initialize_stream(AVStream **stream, int *stream_idx, AVFormatContext *out_fmt_ctx,
   AVFormatContext *in_fmt_ctx, enum AVMediaType AVMEDIA_TYPE)
 {
-  int ret = 0;
-
   const char *avmedia_type_string = av_get_media_type_string(AVMEDIA_TYPE);
+  int ret = 0;
 
   if ((ret = *stream_idx =
     av_find_best_stream(in_fmt_ctx, AVMEDIA_TYPE, -1, -1, NULL, 0)) < 0)
@@ -181,14 +180,14 @@ int main(int argc, char **argv)
     goto end;
   }
 
-  if ((ret = initalize_stream(&out_stream, &v_stream_idx, out_fmt_ctx, v_fmt_ctx,
+  if ((ret = initialize_stream(&out_stream, &v_stream_idx, out_fmt_ctx, v_fmt_ctx,
     AVMEDIA_TYPE_VIDEO)) < 0)
   {
     fprintf(stderr, "Failed to initialize video stream.\n");
     goto end;
   }
 
-  if ((ret = initalize_stream(&out_stream, &a_stream_idx, out_fmt_ctx, v_fmt_ctx,
+  if ((ret = initialize_stream(&out_stream, &a_stream_idx, out_fmt_ctx, v_fmt_ctx,
     AVMEDIA_TYPE_AUDIO)) < 0)
   {
     fprintf(stderr, "Failed to initialize audio stream.\n");
