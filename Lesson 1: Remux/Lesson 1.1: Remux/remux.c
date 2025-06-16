@@ -14,6 +14,9 @@
 #include <libavformat/avformat.h>
 #include <libavcodec/packet.h>
 
+#define VIDEO_STREAM_IDX 0
+#define AUDIO_STREAM_IDX 1
+
 int main(int argc, char **argv)
 {
   const char *in_filename, *out_filename;
@@ -127,10 +130,10 @@ int main(int argc, char **argv)
     in_stream = in_fmt_ctx->streams[pkt->stream_index];
 
     if (pkt->stream_index == v_stream_idx) {
-      pkt->stream_index = 0;
+      pkt->stream_index = VIDEO_STREAM_IDX;
     }
     else if (pkt->stream_index == a_stream_idx) {
-      pkt->stream_index = 1;
+      pkt->stream_index = AUDIO_STREAM_IDX;
     }
     else {
       av_packet_unref(pkt);
