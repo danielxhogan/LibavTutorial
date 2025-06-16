@@ -203,7 +203,10 @@ int main(int argc, char **argv)
     goto end;
   }
 
-  if (strcmp(out_fmt_ctx->oformat->name, "mp4") == 0) {
+  if (
+    (strcmp(out_fmt_ctx->oformat->name, "mp4") == 0) ||
+    (strcmp(out_fmt_ctx->oformat->name, "mov") == 0)
+  ) {
     out_stream->codecpar->codec_id = AV_CODEC_ID_MOV_TEXT;
   }
 
