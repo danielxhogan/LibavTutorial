@@ -63,15 +63,17 @@ int initalize_stream(AVStream **stream, int *stream_idx, AVFormatContext *out_fm
 {
   int ret = 0;
 
+  const char *avmedia_type_string = av_get_media_type_string(AVMEDIA_TYPE);
+
   if ((ret = *stream_idx =
     av_find_best_stream(in_fmt_ctx, AVMEDIA_TYPE, -1, -1, NULL, 0)) < 0)
   {
-    fprintf(stderr, "Failed to find video stream in input file.\n");
+    fprintf(stderr, "Failed to find %s stream in input file.\n", avmedia_type_string);
     return ret;
   }
 
   if (!(*stream = avformat_new_stream(out_fmt_ctx, NULL))) {
-    fprintf(stderr, "Failed to allocate video output stream.\n");
+    fprintf(stderr, "Failed to allocate %s output stream.\n", avmedia_type_string);
     ret = AVERROR(ENOMEM);
     return ret;
   }
@@ -79,7 +81,7 @@ int initalize_stream(AVStream **stream, int *stream_idx, AVFormatContext *out_fm
   if ((ret = avcodec_parameters_copy((*stream)->codecpar,
     in_fmt_ctx->streams[*stream_idx]->codecpar)) < 0)
   {
-    fprintf(stderr, "failed to copy video codec parameters\n");
+    fprintf(stderr, "failed to copy %s codec parameters\n", avmedia_type_string);
     return ret;
   }
   (*stream)->codecpar->codec_tag = 0;
@@ -87,7 +89,7 @@ int initalize_stream(AVStream **stream, int *stream_idx, AVFormatContext *out_fm
   if ((ret = av_dict_copy(&(*stream)->metadata,
     in_fmt_ctx->streams[*stream_idx]->metadata, AV_DICT_DONT_OVERWRITE)) < 0)
   {
-    fprintf(stderr, "Failed to copy video metadata.\n");
+    fprintf(stderr, "Failed to copy %s metadata.\n", avmedia_type_string);
     return ret;
   }
   return ret;
