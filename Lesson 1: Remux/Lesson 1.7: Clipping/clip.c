@@ -38,7 +38,7 @@ int main(int argc, char **argv)
 {
   const char *in_filename, *out_filename;
   int start_sec, duration_sec, video_idx, ret;
-  int64_t start_ts, duration_ts, end_ts = NULL, *dts_starts, *pts_starts, first_dts = NULL, pkt_pts_avtb, pkt_dts_avtb;
+  int64_t start_ts, duration_ts, end_ts, first_dts = (int64_t)NULL;
   AVFormatContext *in_fmt_ctx = NULL, *out_fmt_ctx = NULL;
   AVPacket *pkt = NULL;
   AVStream *in_stream = NULL, *out_stream = NULL;
@@ -83,9 +83,8 @@ int main(int argc, char **argv)
   }
 
   start_ts = start_sec * in_fmt_ctx->streams[0]->time_base.den / in_fmt_ctx->streams[0]->time_base.num;
-  printf("start_ts: %ld\n", start_ts);
 
-  if ((ret = av_seek_frame(in_fmt_ctx, video_idx, start_ts, AVSEEK_FLAG_ANY)) < 0) {
+  if ((ret = av_seek_frame(in_fmt_ctx, video_idx, start_ts, 0)) < 0) {
     fprintf(stderr, "Failed to seek to start frame.\n");
     goto end;
   }
@@ -110,54 +109,37 @@ int main(int argc, char **argv)
     goto end;
   }
 
-  end_ts = 0;
-  int i = 0;
-  while ((ret = av_read_frame(in_fmt_ctx, pkt)) >= 0 && i < 18)
+  while ((ret = av_read_frame(in_fmt_ctx, pkt)) >= 0)
   {
     if (pkt->dts < 0) continue;
+
     in_stream = in_fmt_ctx->streams[pkt->stream_index];
     out_stream = out_fmt_ctx->streams[pkt->stream_index];
 
-    if (!first_dts) {
-      printf("stream type first time: %d\n", in_stream->codecpar->codec_type);
-      printf("pkt->stream_index: %d\n", pkt->stream_index);
-
+    if (!first_dts)
+    {
       if (pkt->stream_index == video_idx) {
+        if (!(pkt->flags && AV_PKT_FLAG_KEY)) continue;
+
         first_dts = pkt->dts;
-        printf("first dts: %ld\n", first_dts);
-        duration_ts = av_rescale_q(duration_sec * AV_TIME_BASE, AV_TIME_BASE_Q, in_fmt_ctx->streams[0]->time_base);
-        printf("duration_ts: %ld\n", duration_ts);
-        end_ts = pkt->dts + duration_ts;
-        printf("end_ts: %ld \n", end_ts);
-      } else {
+        duration_ts = av_rescale_q(duration_sec * AV_TIME_BASE, AV_TIME_BASE_Q, in_fmt_ctx->streams[video_idx]->time_base);
+        end_ts = first_dts + duration_ts;
+      }
+      else {
         continue;
       }
     }
-
-    in_stream = in_fmt_ctx->streams[pkt->stream_index];
-    out_stream = out_fmt_ctx->streams[pkt->stream_index];
-
-    printf("stream type: %d\n", in_stream->codecpar->codec_type);
-    printf("pkt->dts: %ld\n", pkt->dts);
-    printf("pkt->pts: %ld\n", pkt->pts);
-
 
     if (end_ts && pkt->dts > end_ts) {
       av_packet_unref(pkt);
       break;
     }
 
-    printf("pkt->pts - first_dts: %d\n", pkt->pts - first_dts);
-
     pkt->pts = av_rescale_q(pkt->pts - first_dts,
       in_stream->time_base, out_stream->time_base);
 
-    printf("pkt->pts offsetted: %d\n", pkt->pts);
-
     pkt->dts = av_rescale_q(pkt->dts - first_dts,
       in_stream->time_base, out_stream->time_base);
-
-    printf("pkt->dts offsetted: %d\n", pkt->dts);
 
     pkt->duration = av_rescale_q(pkt->duration, in_stream->time_base, out_stream->time_base);
 
@@ -168,7 +150,6 @@ int main(int argc, char **argv)
     }
 
     av_packet_unref(pkt);
-    printf("\n");
   }
 
   if ((ret = av_write_trailer(out_fmt_ctx)) < 0) {
