@@ -1,5 +1,10 @@
 #include <libavformat/avformat.h>
 
+enum FIRST_DTS_SET {
+  NOT_SET,
+  SET
+};
+
 int initialize_stream(AVFormatContext *out_fmt_ctx, AVStream *in_stream)
 {
   AVStream *out_stream;
@@ -38,7 +43,8 @@ int main(int argc, char **argv)
 {
   const char *in_filename, *out_filename;
   int start_sec, duration_sec, video_idx, ret;
-  int64_t start_ts, duration_ts, end_ts, first_dts = (int64_t)NULL;
+  int64_t start_ts, duration_ts, end_ts, first_dts;
+  enum FIRST_DTS_SET first_dts_set = NOT_SET;
   AVFormatContext *in_fmt_ctx = NULL, *out_fmt_ctx = NULL;
   AVPacket *pkt = NULL;
   AVStream *in_stream = NULL, *out_stream = NULL;
@@ -84,7 +90,7 @@ int main(int argc, char **argv)
 
   start_ts = start_sec * in_fmt_ctx->streams[0]->time_base.den / in_fmt_ctx->streams[0]->time_base.num;
 
-  if ((ret = av_seek_frame(in_fmt_ctx, video_idx, start_ts, 0)) < 0) {
+  if ((ret = av_seek_frame(in_fmt_ctx, video_idx, start_ts, AVSEEK_FLAG_BACKWARD)) < 0) {
     fprintf(stderr, "Failed to seek to start frame.\n");
     goto end;
   }
@@ -111,19 +117,27 @@ int main(int argc, char **argv)
 
   while ((ret = av_read_frame(in_fmt_ctx, pkt)) >= 0)
   {
-    if (pkt->dts < 0) continue;
+    if (pkt->dts < 0) pkt->dts = 0;
+    if (pkt->pts < 0) pkt->pts = 0;
 
     in_stream = in_fmt_ctx->streams[pkt->stream_index];
     out_stream = out_fmt_ctx->streams[pkt->stream_index];
 
-    if (!first_dts)
+    if (first_dts_set == NOT_SET)
     {
+      printf("have not found first keyframe. Current frame type: %d\n", in_stream->codecpar->codec_type);
+
       if (pkt->stream_index == video_idx) {
         if (!(pkt->flags && AV_PKT_FLAG_KEY)) continue;
+        printf("Current frame is first keyframe.\n");
 
         first_dts = pkt->dts;
+        first_dts_set = SET;
         duration_ts = av_rescale_q(duration_sec * AV_TIME_BASE, AV_TIME_BASE_Q, in_fmt_ctx->streams[video_idx]->time_base);
         end_ts = first_dts + duration_ts;
+        printf("first_dts: %ld\n", first_dts);
+        printf("duration_ts: %ld\n", duration_ts);
+        printf("end_ts: %ld\n", end_ts);
       }
       else {
         continue;
@@ -135,6 +149,10 @@ int main(int argc, char **argv)
       break;
     }
 
+    // printf("before rescaling:\n");
+    // printf("pkt->pts: %ld\n", pkt->pts);
+    // printf("pkt->dts: %ld\n", pkt->dts);
+
     pkt->pts = av_rescale_q(pkt->pts - first_dts,
       in_stream->time_base, out_stream->time_base);
 
@@ -142,6 +160,10 @@ int main(int argc, char **argv)
       in_stream->time_base, out_stream->time_base);
 
     pkt->duration = av_rescale_q(pkt->duration, in_stream->time_base, out_stream->time_base);
+
+    // printf("after rescaling:\n");
+    // printf("pkt->pts: %ld\n", pkt->pts);
+    // printf("pkt->dts: %ld\n", pkt->dts);
 
     pkt->pos = -1;
     if ((ret = av_interleaved_write_frame(out_fmt_ctx, pkt)) < 0) {
