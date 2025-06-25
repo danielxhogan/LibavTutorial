@@ -70,7 +70,8 @@ int main(int argc, char **argv)
       "and reads however many seconds specified by the duration from the\n\t"
       "input file and outputs it to a file specified by output file. It is\n\t"
       "roughly the equivalent of the following ffmpeg commad:\n\n\t"
-      "ffmpeg -ss <seek time> -i <input file> -t <duration> -map 0 -c copy <output file>\n\n",
+      "ffmpeg -ss <seek time> -i <input file> -t <duration> "
+      "-map 0 -c copy <output file>\n\n",
       argv[0]);
     return 0;
   }
@@ -108,9 +109,14 @@ int main(int argc, char **argv)
     }
   }
 
-  start_ts = start_sec * in_fmt_ctx->streams[0]->time_base.den / in_fmt_ctx->streams[0]->time_base.num;
+  start_ts =
+    start_sec *
+    in_fmt_ctx->streams[0]->time_base.den /
+    in_fmt_ctx->streams[0]->time_base.num;
 
-  if ((ret = av_seek_frame(in_fmt_ctx, video_idx, start_ts, AVSEEK_FLAG_BACKWARD)) < 0) {
+  if ((ret =
+    av_seek_frame(in_fmt_ctx, video_idx, start_ts, AVSEEK_FLAG_BACKWARD)) < 0)
+  {
     fprintf(stderr, "Failed to seek to start frame.\n");
     goto end;
   }
@@ -145,7 +151,8 @@ int main(int argc, char **argv)
 
     if (first_dts_set == NOT_SET)
     {
-      printf("have not found first keyframe. Current frame type: %d\n", in_stream->codecpar->codec_type);
+      printf("have not found first keyframe. Current frame type: %d\n",
+        in_stream->codecpar->codec_type);
 
       if (pkt->stream_index == video_idx) {
         if (!(pkt->flags && AV_PKT_FLAG_KEY)) continue;
@@ -153,8 +160,10 @@ int main(int argc, char **argv)
 
         first_dts = pkt->dts;
         first_dts_set = SET;
-        duration_ts = av_rescale_q(duration_sec * AV_TIME_BASE, AV_TIME_BASE_Q, in_fmt_ctx->streams[video_idx]->time_base);
+        duration_ts = av_rescale_q(duration_sec * AV_TIME_BASE, AV_TIME_BASE_Q,
+          in_fmt_ctx->streams[video_idx]->time_base);
         end_ts = first_dts + duration_ts;
+
         printf("first_dts: %ld\n", first_dts);
         printf("duration_ts: %ld\n", duration_ts);
         printf("end_ts: %ld\n", end_ts);
@@ -179,7 +188,8 @@ int main(int argc, char **argv)
     pkt->dts = av_rescale_q(pkt->dts - first_dts,
       in_stream->time_base, out_stream->time_base);
 
-    pkt->duration = av_rescale_q(pkt->duration, in_stream->time_base, out_stream->time_base);
+    pkt->duration = av_rescale_q(pkt->duration,
+      in_stream->time_base,out_stream->time_base);
 
     // printf("after rescaling:\n");
     // printf("pkt->pts: %ld\n", pkt->pts);
