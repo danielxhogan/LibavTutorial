@@ -1,3 +1,17 @@
+/*
+ * This function takes in a video file along with a timestamp in seconds and a
+ * duration. It seeks to the closest I frame to the timestamp and reads however
+ * many seconds specified by the duration from the input and outputs it to a
+ * file specified by the output argument. It is roughly the equivalent to the
+ * following ffmpeg commad:
+ *
+ * ffmpeg \
+ *   -ss <seek time> \
+ *   -i <input file> \
+ *   -t <duration> \
+ *   <output file>
+*/
+
 #include <libavformat/avformat.h>
 
 enum FIRST_DTS_SET {
@@ -50,7 +64,13 @@ int main(int argc, char **argv)
   AVStream *in_stream = NULL, *out_stream = NULL;
 
   if (argc != 5) {
-    printf("\nUsage: %s <seek time> <input file> <duration> <output file>\n",
+    printf("\nUsage: %s <seek time> <input file> <duration> <output file>\n\n\t"
+      "This function takes in a video file along with a timestamp in seconds\n\t"
+      "and a duration. It seeks to the closest I frame to the timestamp\n\t"
+      "and reads however many seconds specified by the duration from the\n\t"
+      "input file and outputs it to a file specified by output file. It is\n\t"
+      "roughly the equivalent of the following ffmpeg commad:\n\n\t"
+      "ffmpeg -ss <seek time> -i <input file> -t <duration> -map 0 -c copy <output file>\n\n",
       argv[0]);
     return 0;
   }
