@@ -149,8 +149,8 @@ int main(int argc, char **argv)
 
   while ((ret = av_read_frame(in_fmt_ctx, pkt)) >= 0)
   {
-    if (pkt->dts < 0) pkt->dts = 0;
-    if (pkt->pts < 0) pkt->pts = 0;
+    if (pkt->dts < 0) continue;
+    if (pkt->pts < 0) continue;
 
     in_stream = in_fmt_ctx->streams[pkt->stream_index];
     out_stream = out_fmt_ctx->streams[pkt->stream_index];
