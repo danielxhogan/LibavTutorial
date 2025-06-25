@@ -9,6 +9,7 @@
  *   -ss <seek time> \
  *   -i <input file> \
  *   -t <duration> \
+ *   -map 0 -c copy \
  *   <output file>
 */
 
