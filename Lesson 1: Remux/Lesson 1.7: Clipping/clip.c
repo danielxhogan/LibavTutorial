@@ -117,8 +117,8 @@ int main(int argc, char **argv)
 
   start_ts =
     start_sec *
-    in_fmt_ctx->streams[0]->time_base.den /
-    in_fmt_ctx->streams[0]->time_base.num;
+    in_fmt_ctx->streams[video_idx]->time_base.den /
+    in_fmt_ctx->streams[video_idx]->time_base.num;
 
   if ((ret =
     av_seek_frame(in_fmt_ctx, video_idx, start_ts, AVSEEK_FLAG_BACKWARD)) < 0)
