@@ -300,7 +300,6 @@ int main(int argc, char **argv)
     while ((ret = av_read_frame(inputs[i]->fmt_ctx, pkt)) >= 0)
     {
       in_stream = inputs[i]->fmt_ctx->streams[pkt->stream_index];
-
       pkt->stream_index = inputs[i]->map[pkt->stream_index];
 
       if (pkt->stream_index == INACTIVE_STREAM) {
@@ -318,6 +317,8 @@ int main(int argc, char **argv)
         return ret;
       }
     }
+
+    av_packet_unref(pkt);
   }
 
   if ((ret = av_write_trailer(out_fmt_ctx)) < 0) {
