@@ -149,8 +149,13 @@ int main(int argc, char **argv)
 
   while ((ret = av_read_frame(in_fmt_ctx, pkt)) >= 0)
   {
-    if (pkt->dts < 0) continue;
-    if (pkt->pts < 0) continue;
+    if (
+      pkt->dts < 0 ||
+      pkt->pts < 0
+    ) {
+        av_packet_unref(pkt);
+        continue;
+      }
 
     in_stream = in_fmt_ctx->streams[pkt->stream_index];
     out_stream = out_fmt_ctx->streams[pkt->stream_index];
@@ -160,8 +165,12 @@ int main(int argc, char **argv)
       printf("have not found first keyframe. Current frame type: %d\n",
         in_stream->codecpar->codec_type);
 
-      if (pkt->stream_index == video_idx) {
-        if (!(pkt->flags && AV_PKT_FLAG_KEY)) continue;
+      if (pkt->stream_index == video_idx)
+      {
+        if (!(pkt->flags & AV_PKT_FLAG_KEY)) {
+          av_packet_unref(pkt);
+          continue;
+        }
         printf("Current frame is first keyframe.\n");
 
         first_dts = pkt->dts;
@@ -175,6 +184,7 @@ int main(int argc, char **argv)
         printf("end_ts: %ld\n", end_ts);
       }
       else {
+        av_packet_unref(pkt);
         continue;
       }
     }
