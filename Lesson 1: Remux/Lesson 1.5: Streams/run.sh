@@ -1,6 +1,6 @@
 cd build && ninja && ./streams \
   -i "../videos/inputs/av1_mp3.mp4" -map 01 \
-  -i "../videos/inputs/h264_eac3.mkv" -map 012 \
+  -i "../videos/inputs/h264_eac3.mkv" -map 01 \
   -i "../videos/inputs/vp9_opus.webm" -map 01 \
   "../videos/outputs/all.mkv" "all.mkv"
 
