@@ -33,14 +33,10 @@ typedef struct StreamContext {
 
 int get_len_basename(size_t *len_basename, const char *filename)
 {
-  const char *slash;
   const char *dot;
   const char *end;
   size_t filename_length;
   size_t ext_length;
-
-  slash = strrchr(filename, '/');
-  if (slash) filename = ++slash;
 
   dot = strrchr(filename, '.');
   if (!dot || dot == filename) {
@@ -50,10 +46,7 @@ int get_len_basename(size_t *len_basename, const char *filename)
 
   for (end = filename; *end; end++);
   filename_length = end - filename + 1;
-
-  for (end = dot; *end; end++);
   ext_length = end - dot + 1;
-
   *len_basename = filename_length - ext_length;
   return 0;
 }
