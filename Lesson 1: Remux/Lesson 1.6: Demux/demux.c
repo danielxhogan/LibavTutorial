@@ -187,6 +187,7 @@ int init_stream(StreamContext *stream_ctx, AVFormatContext *fmt_ctx,
       stream_ctx->stream_idx);
     return ret;
   }
+  stream_ctx->out_stream->codecpar->codec_tag = 0;
 
   if ((ret = av_dict_copy(&stream_ctx->out_stream->metadata,
     stream_ctx->in_stream->metadata, AV_DICT_DONT_OVERWRITE)) < 0)
