@@ -39,12 +39,6 @@ int initialize_stream(AVFormatContext *out_fmt_ctx, AVStream *in_stream)
   }
   out_stream->codecpar->codec_tag = 0;
 
-  if ((out_stream->codecpar->codec_type == AVMEDIA_TYPE_SUBTITLE) &&
-    !(strcmp(out_fmt_ctx->oformat->name, "mp4")))
-  {
-    out_stream->codecpar->codec_id = AV_CODEC_ID_MOV_TEXT;
-  }
-
   if ((ret = av_dict_copy(&out_stream->metadata,
     in_stream->metadata, AV_DICT_DONT_OVERWRITE)) < 0)
   {
