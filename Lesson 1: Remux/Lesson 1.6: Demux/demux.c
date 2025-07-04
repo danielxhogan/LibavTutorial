@@ -33,10 +33,14 @@ typedef struct StreamContext {
 
 int get_len_basename(size_t *len_basename, const char *filename)
 {
+  const char *slash;
   const char *dot;
   const char *end;
   size_t filename_length;
   size_t ext_length;
+
+  slash = strrchr(filename, '/');
+  if (slash) filename = ++slash;
 
   dot = strrchr(filename, '.');
   if (!dot || dot == filename) {
@@ -46,7 +50,10 @@ int get_len_basename(size_t *len_basename, const char *filename)
 
   for (end = filename; *end; end++);
   filename_length = end - filename + 1;
+
+  for (end = dot; *end; end++);
   ext_length = end - dot + 1;
+
   *len_basename = filename_length - ext_length;
   return 0;
 }
@@ -187,7 +194,6 @@ int init_stream(StreamContext *stream_ctx, AVFormatContext *fmt_ctx,
       stream_ctx->stream_idx);
     return ret;
   }
-  stream_ctx->out_stream->codecpar->codec_tag = 0;
 
   if ((ret = av_dict_copy(&stream_ctx->out_stream->metadata,
     stream_ctx->in_stream->metadata, AV_DICT_DONT_OVERWRITE)) < 0)
