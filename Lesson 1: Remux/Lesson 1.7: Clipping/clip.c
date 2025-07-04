@@ -51,7 +51,8 @@ int initialize_stream(AVFormatContext *out_fmt_ctx, AVStream *in_stream)
 int main(int argc, char **argv)
 {
   const char *in_filename, *out_filename;
-  int start_sec, duration_sec, video_idx = -1, ret;
+  int video_idx = -1, ret;
+  double start_sec, duration_sec;
   int64_t start_ts, duration_ts, end_ts, first_dts;
   enum FIRST_DTS_SET first_dts_set = NOT_SET;
   AVFormatContext *in_fmt_ctx = NULL, *out_fmt_ctx = NULL;
