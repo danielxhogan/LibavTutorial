@@ -184,7 +184,7 @@ int main(int argc, char **argv)
       }
     }
 
-    if (end_ts && pkt->dts > end_ts) {
+    if (pkt->dts > end_ts) {
       av_packet_unref(pkt);
       break;
     }
