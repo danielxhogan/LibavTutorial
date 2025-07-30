@@ -1,5 +1,5 @@
 # All metadata, and chapters are copied.
-cd build && ninja && ./cpmetadata "../videos/inputs/vp9_opus.webm" "../videos/outputs/vp9_opus.mkv" "vp9_opus.mkv"
+# cd build && ninja && ./cpmetadata "../videos/inputs/vp9_opus.webm" "../videos/outputs/vp9_opus.mkv" "vp9_opus.mkv"
 
 # All metadata, and chapters are copied.
 # cd build && ninja && ./cpmetadata "../videos/inputs/vp9_opus.mkv" "../videos/outputs/vp9_opus.mkv" "vp9_opus.webm"
@@ -25,4 +25,4 @@ cd build && ninja && ./cpmetadata "../videos/inputs/vp9_opus.webm" "../videos/ou
 # File metadata is copied. Chapters and stream metadata is not supported in flv.
 # cd build && ninja && ./cpmetadata "../videos/inputs/av1_mp3.mp4" "../videos/outputs/av1_mp3.flv" "av1_mp3.flv"
 
-# cd build && ninja && ./cpmetadata
+cd build && ninja && ./cpmetadata

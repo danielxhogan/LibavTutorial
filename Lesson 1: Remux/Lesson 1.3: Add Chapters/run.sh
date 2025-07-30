@@ -13,4 +13,4 @@
 # doesn't work. don't know why
 # cd build && ninja && ./addchapters "../videos/inputs/h264_mp3.avi" "../chapters.txt" "../videos/outputs/h264_mp3.avi" "h264_mp3.avi"
 
-# cd build && ninja && ./addchapters
+cd build && ninja && ./addchapters

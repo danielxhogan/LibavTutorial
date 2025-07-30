@@ -1,5 +1,5 @@
 # webvtt subtitles only supported in mp4, mov, mkv, and webm
-cd build && ninja && ./addsubs "../videos/inputs/av1_mp3.mp4" "../subtitles.vtt" "../videos/outputs/av1_mp3.mp4" "av1_mp3.mp4"
+# cd build && ninja && ./addsubs "../videos/inputs/av1_mp3.mp4" "../subtitles.vtt" "../videos/outputs/av1_mp3.mp4" "av1_mp3.mp4"
 # cd build && ninja && ./addsubs "../videos/inputs/h264_mp3.mov" "../subtitles.vtt" "../videos/outputs/h264_mp3.mov" "h264_mp3.mov"
 # cd build && ninja && ./addsubs "../videos/inputs/h264_eac3.mkv" "../subtitles.vtt" "../videos/outputs/h264_eac3.mkv" "h264_eac3.mkv"
 # cd build && ninja && ./addsubs "../videos/inputs/vp9_opus.webm" "../subtitles.vtt" "../videos/outputs/vp9_opus.webm" "vp9_opus.webm"
@@ -9,4 +9,4 @@ cd build && ninja && ./addsubs "../videos/inputs/av1_mp3.mp4" "../subtitles.vtt"
 # cd build && ninja && ./addsubs "../videos/inputs/h264_mp3.wmv" "../subtitles.vtt" "../videos/outputs/h264_mp3.wmv" "h264_mp3.wmv"
 # cd build && ninja && ./addsubs "../videos/inputs/h264_mp3.avi" "../subtitles.vtt" "../videos/outputs/h264_mp3.avi" "h264_mp3.avi"
 
-# cd build && ninja && ./addsubs
+cd build && ninja && ./addsubs

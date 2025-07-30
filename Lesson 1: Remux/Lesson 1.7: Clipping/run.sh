@@ -5,4 +5,4 @@
 # cd build && ninja && ./clip 6 "../videos/inputs/av1_mp3.mp4" 3 "../videos/outputs/av1_mp3.mp4"
 # cd build && ninja && ./clip 6 "../videos/inputs/h264_mp3.flv" 4 "../videos/outputs/h264_mp3.flv"
 
-# cd build && ninja && ./clip
+cd build && ninja && ./clip

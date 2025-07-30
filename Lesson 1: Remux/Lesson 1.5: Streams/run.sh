@@ -1,8 +1,8 @@
-cd build && ninja && ./streams \
-  -i "../videos/inputs/av1_mp3.mp4" -map 01 \
-  -i "../videos/inputs/h264_eac3.mkv" -map 01 \
-  -i "../videos/inputs/vp9_opus.webm" -map 01 \
-  "../videos/outputs/all.mkv" "all.mkv"
+# cd build && ninja && ./streams \
+#   -i "../videos/inputs/av1_mp3.mp4" -map 01 \
+#   -i "../videos/inputs/h264_eac3.mkv" -map 01 \
+#   -i "../videos/inputs/vp9_opus.webm" -map 01 \
+#   "../videos/outputs/all.mkv" "all.mkv"
 
 # cd build && ninja && ./streams \
 #   -i "../videos/outputs/all.mkv" -map 025 \
@@ -21,4 +21,4 @@ cd build && ninja && ./streams \
 #   -i "../videos/inputs/h5a_ikkf.mov" -map 01 \
 #   "../videos/outputs/all_ikkf.mkv" "all_ikkf.mkv"
 
-# cd build && ninja && ./streams
+cd build && ninja && ./streams
