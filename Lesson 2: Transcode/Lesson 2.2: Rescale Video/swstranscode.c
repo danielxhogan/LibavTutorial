@@ -85,7 +85,6 @@ void sws_output_context_free(SwsOutputContext *sws_out_ctx)
   free(sws_out_ctx);
 }
 
-
 int initialize_encoder_params(const char *encoder, char **enc_params_opt)
 {
   if (strcmp(encoder, "libx264") == 0) {
@@ -300,14 +299,6 @@ int main(int argc, char **argv)
 
     while ((ret = avcodec_receive_frame(dec_ctx, frame)) >= 0)
     {
-      // av_frame_make_writable(sws_out_ctx->frame);
-
-      // sws_scale(sws_out_ctx->sws_ctx, (const uint8_t * const *) frame->data, frame->linesize,
-      //   0, dec_ctx->height, sws_out_ctx->frame->data, sws_out_ctx->frame->linesize);
-
-      // sws_out_ctx->frame->pts = frame->pts;
-      // sws_out_ctx->frame->pkt_dts = frame->pkt_dts;
-
       if ((ret = sws_output_context_scale(sws_out_ctx, frame)) < 0) {
         fprintf(stderr, "Failed to scale frame.\n");
         goto end;
