@@ -52,7 +52,9 @@ InputContext *open_input(const char *in_filename, int stream_idx)
     goto end;
   }
 
-  if ((ret = avcodec_parameters_to_context(ctx->dec_ctx, in_stream->codecpar)) < 0) {
+  if ((ret =
+    avcodec_parameters_to_context(ctx->dec_ctx, in_stream->codecpar)) < 0)
+  {
     fprintf(stderr, "Failed to copy codec parameters to decoder context.\n");
     goto end;
   }
@@ -99,8 +101,8 @@ int select_channel_layout(AVCodecContext *enc_ctx,
     return ret;
   }
 
-  if ((ret = av_channel_layout_describe(preferred_layout, preferred_layout_name,
-    sizeof(preferred_layout_name))) < 0)
+  if ((ret = av_channel_layout_describe(preferred_layout,
+    preferred_layout_name, sizeof(preferred_layout_name))) < 0)
   {
     fprintf(stderr, "Failed to get name for preferred layout.\n");
     return ret;
@@ -130,8 +132,8 @@ int select_channel_layout(AVCodecContext *enc_ctx,
   current_layout = layouts;
 
   while (current_layout->nb_channels) {
-    if ((ret = av_channel_layout_describe(current_layout, current_layout_name,
-      sizeof(current_layout_name))) < 0)
+    if ((ret = av_channel_layout_describe(current_layout,
+      current_layout_name, sizeof(current_layout_name))) < 0)
     {
       fprintf(stderr, "Failed to get name for current layout.\n");
       return ret;
@@ -169,7 +171,9 @@ int select_channel_layout(AVCodecContext *enc_ctx,
     printf("current_layout_name: %s\n", current_layout_name);
 
     if (current_layout->nb_channels == preferred_nb_channels) {
-      if ((ret = av_channel_layout_copy(&enc_ctx->ch_layout, current_layout)) < 0) {
+      if ((ret =
+        av_channel_layout_copy(&enc_ctx->ch_layout, current_layout)) < 0)
+      {
         fprintf(stderr, "Failed to copy layout with preferred_nb_channels.\n");
         return ret;
       }
@@ -341,7 +345,9 @@ OutputContext *open_output(AVCodecContext *dec_ctx,
     goto end;
   }
 
-  if ((ret = avcodec_parameters_from_context(out_stream->codecpar, ctx->enc_ctx))) {
+  if ((ret =
+    avcodec_parameters_from_context(out_stream->codecpar, ctx->enc_ctx)))
+  {
     fprintf(stderr,
       "Failed to copy codec parameters from encoder context to stream.\n");
       goto end;
@@ -671,7 +677,8 @@ int main(int argc, char **argv)
         goto end;
       }
 
-      if ((ret = fsc_ctx_add_samples_to_buffer(fsc_ctx, swr_frame, nb_converted_samples)) < 0)
+      if ((ret = fsc_ctx_add_samples_to_buffer(
+        fsc_ctx, swr_frame, nb_converted_samples)) < 0)
       {
         fprintf(stderr, "Failed to add samples to buffer.\n");
         goto end;
@@ -679,7 +686,8 @@ int main(int argc, char **argv)
 
       // printf("nb_converted_samples: %d\n", nb_converted_samples);
       // printf("swr_frame->nb_samples: %d\n", swr_frame->nb_samples);
-      // printf("input_ctx->dec_frame->nb_samples: %d\n", input_ctx->dec_frame->nb_samples);
+      // printf("input_ctx->dec_frame->nb_samples: %d\n",
+      //   input_ctx->dec_frame->nb_samples);
 
       while (fsc_ctx->nb_samples_in_buffer >= output_ctx->enc_ctx->frame_size)
       {
@@ -688,7 +696,9 @@ int main(int argc, char **argv)
           goto end;
         }
 
-        if ((ret = avcodec_send_frame(output_ctx->enc_ctx, fsc_ctx->frame)) < 0) {
+        if ((ret =
+          avcodec_send_frame(output_ctx->enc_ctx, fsc_ctx->frame)) < 0)
+        {
           fprintf(stderr, "Failed to send frame to encoder.\n");
           goto end;
         }
@@ -697,7 +707,9 @@ int main(int argc, char **argv)
         {
           pkt->stream_index = 0;
 
-          if ((ret = av_interleaved_write_frame(output_ctx->fmt_ctx, pkt)) < 0) {
+          if ((ret =
+            av_interleaved_write_frame(output_ctx->fmt_ctx, pkt)) < 0)
+          {
             fprintf(stderr, "Failed to write packet to file.\n");
             goto end;
           }
