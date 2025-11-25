@@ -242,10 +242,69 @@ int main(int argc, char **argv)
     goto end;
   }
 
-  if ((ret = avcodec_send_frame(enc_ctx, NULL)) < 0) {
-    fprintf(stderr, "Failed to send frame to encoder.\n");
+  // flush decoder
+
+  if ((ret = avcodec_send_packet(dec_ctx, NULL)) < 0)
+  {
+    fprintf(stderr, "Failed to send packet to decoder.\n");
     goto end;
   }
+
+  while ((ret = avcodec_receive_frame(dec_ctx, frame)) >= 0)
+  {
+    if ((ret = avcodec_send_frame(enc_ctx, frame)) < 0)
+    {
+      fprintf(stderr, "Failed to send frame to encoder.\n");
+      return ret;
+    }
+
+    while ((ret = avcodec_receive_packet(enc_ctx, pkt)) >= 0)
+    {
+      pkt->stream_index = 0;
+      av_packet_rescale_ts(pkt, in_stream->time_base, out_stream->time_base);
+
+      if ((ret = av_interleaved_write_frame(out_fmt_ctx, pkt)) < 0) {
+        fprintf(stderr, "Failed to write packet to file.\n");
+        goto end;
+      }
+    }
+
+    if ((ret != AVERROR(EAGAIN)) && (ret != AVERROR_EOF)) {
+      fprintf(stderr, "Failed to receive packet from encoder.\n");
+      return ret;
+    }
+  }
+
+  if ((ret != AVERROR(EAGAIN)) && (ret != AVERROR_EOF)) {
+    fprintf(stderr, "Failed to receive frame from decoder.\n");
+    goto end;
+  }
+
+  // flush encoder
+
+  if ((ret = avcodec_send_frame(enc_ctx, NULL)) < 0)
+  {
+    fprintf(stderr, "Failed to send frame to encoder.\n");
+    return ret;
+  }
+
+  while ((ret = avcodec_receive_packet(enc_ctx, pkt)) >= 0)
+  {
+    pkt->stream_index = 0;
+    av_packet_rescale_ts(pkt, in_stream->time_base, out_stream->time_base);
+
+    if ((ret = av_interleaved_write_frame(out_fmt_ctx, pkt)) < 0) {
+      fprintf(stderr, "Failed to write packet to file.\n");
+      goto end;
+    }
+  }
+
+  if ((ret != AVERROR(EAGAIN)) && (ret != AVERROR_EOF)) {
+    fprintf(stderr, "Failed to receive packet from encoder.\n");
+    return ret;
+  }
+
+  // done flushing
 
   if ((ret = av_write_trailer(out_fmt_ctx)) < 0) {
     fprintf(stderr, "Failed to write trailer to file.\n");
