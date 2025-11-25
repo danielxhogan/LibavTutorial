@@ -1,6 +1,11 @@
 
+meson_setup.sh
 build
 outputs
+og
 /*/*/videos/ffmpeg/
 Lesson 1.7: Special Chapters
+*Lesson 2.7*
+*Lesson 2.x*
 .vscode
+
