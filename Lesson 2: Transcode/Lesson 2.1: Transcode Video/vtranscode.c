@@ -2,24 +2,6 @@
 #include <libavcodec/avcodec.h>
 #include <libavutil/opt.h>
 
-int initialize_encoder_params(const char *encoder, char **enc_params_opt)
-{
-  if (strcmp(encoder, "libx264") == 0) {
-    *enc_params_opt = "x264-params";
-  }
-  else if (strcmp(encoder, "libx265") == 0) {
-    *enc_params_opt = "x265-params";
-  }
-  else if (strcmp(encoder, "libsvtav1") == 0) {
-    *enc_params_opt = "svtav1-params";
-  }
-  else {
-    fprintf(stderr, "Encoder not supported.\n");
-    return -1;
-  }
-  return 0;
-}
-
 typedef struct InputContext {
   AVFormatContext *fmt_ctx;
   AVCodecContext *dec_ctx;
@@ -278,6 +260,24 @@ void close_output(OutputContext *out_ctx)
   avformat_free_context(out_ctx->fmt_ctx);
   avcodec_free_context(&out_ctx->enc_ctx);
   free(out_ctx);
+}
+
+int initialize_encoder_params(const char *encoder, char **enc_params_opt)
+{
+  if (strcmp(encoder, "libx264") == 0) {
+    *enc_params_opt = "x264-params";
+  }
+  else if (strcmp(encoder, "libx265") == 0) {
+    *enc_params_opt = "x265-params";
+  }
+  else if (strcmp(encoder, "libsvtav1") == 0) {
+    *enc_params_opt = "svtav1-params";
+  }
+  else {
+    fprintf(stderr, "Encoder not supported.\n");
+    return -1;
+  }
+  return 0;
 }
 
 int main(int argc, char **argv)
