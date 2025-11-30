@@ -1,5 +1,6 @@
 #include <libavformat/avformat.h>
 #include <libavcodec/avcodec.h>
+#include <libavutil/opt.h>
 
 int initialize_encoder_params(const char *encoder, char **enc_params_opt)
 {
