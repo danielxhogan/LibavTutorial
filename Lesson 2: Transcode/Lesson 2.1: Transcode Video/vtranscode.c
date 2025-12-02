@@ -327,6 +327,11 @@ int transcode(InputContext *in_ctx, AVStream *in_stream,
       return ret;
     }
   }
+
+  if ((ret != AVERROR(EAGAIN)) && (ret != AVERROR_EOF)) {
+    fprintf(stderr, "Failed to read frame from input file.\n");
+    goto end;
+  }
 }
 
 int main(int argc, char **argv)
