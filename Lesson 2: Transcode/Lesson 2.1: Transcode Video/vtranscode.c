@@ -19,7 +19,7 @@ InputContext *open_input(const char *in_filename, unsigned int stream_idx)
 
   if (!(in_ctx = malloc(sizeof(InputContext)))) {
     fprintf(stderr,
-      "Failed to allocate InputContext for file: '%s'\n", in_filename);
+      "Failed to allocate InputContext\n");
     ret = AVERROR(ENOMEM);
     goto end;
   }
@@ -30,18 +30,20 @@ InputContext *open_input(const char *in_filename, unsigned int stream_idx)
   in_ctx->pkt = NULL;
   in_ctx->stream_idx = stream_idx;
 
-  if ((ret = avformat_open_input(&in_ctx->fmt_ctx, in_filename, NULL, NULL)) < 0) {
-    fprintf(stderr, "Failed to open file: '%s'\n", in_filename);
+  if ((ret =
+    avformat_open_input(&in_ctx->fmt_ctx, in_filename, NULL, NULL)) < 0)
+  {
+    fprintf(stderr, "Failed to open AVFormatContext\n");
     goto end;
   }
 
   if ((ret = avformat_find_stream_info(in_ctx->fmt_ctx, NULL)) < 0) {
-    fprintf(stderr, "Failed to find stream info for file: '%s'\n", in_filename);
+    fprintf(stderr, "Failed to find stream info\n");
     goto end;
   }
 
   if (stream_idx >= in_ctx->fmt_ctx->nb_streams) {
-    fprintf(stderr, "Invalid stream index for file: '%s'\n", in_filename);
+    fprintf(stderr, "Invalid stream index\n");
     ret = -1;
     goto end;
   }
@@ -49,16 +51,14 @@ InputContext *open_input(const char *in_filename, unsigned int stream_idx)
   in_stream = in_ctx->fmt_ctx->streams[stream_idx];
 
   if (!(dec = avcodec_find_decoder(in_stream->codecpar->codec_id))) {
-    fprintf(stderr, "Failed to find decoder for stream: '%d' in file: '%s'\n",
-      stream_idx, in_filename);
+    fprintf(stderr, "Failed to find decoder for stream: '%d'\n", stream_idx);
     ret = AVERROR(EINVAL);
     goto end;
   }
 
   if (!(in_ctx->dec_ctx = avcodec_alloc_context3(dec))) {
     fprintf(stderr,
-      "Failed to allocate decoder for stream: '%d' in file: '%s'\n",
-      stream_idx, in_filename);
+      "Failed to allocate decoder for stream: '%d'\n", stream_idx);
     ret = AVERROR(EINVAL);
     goto end;
   }
@@ -67,14 +67,14 @@ InputContext *open_input(const char *in_filename, unsigned int stream_idx)
     avcodec_parameters_to_context(in_ctx->dec_ctx, in_stream->codecpar)) < 0)
   {
     fprintf(stderr,
-      "Failed to copy parameters from input stream to decoder \
-      for stream: '%d' in file: '%s'\n", stream_idx, in_filename);
+      "Failed to copy parameters from input stream: '%d' to decoder\n",
+      stream_idx);
     goto end;
   }
 
   if ((ret = avcodec_open2(in_ctx->dec_ctx, dec, NULL)) < 0) {
-    fprintf(stderr, "Failed to open decoder for stream: '%d' in file: '%s'\n",
-      stream_idx, in_filename);
+    fprintf(stderr, "Failed to open decoder for stream: '%d'\n",
+      stream_idx);
     goto end;
   }
 
@@ -109,6 +109,24 @@ void close_input(InputContext *in_ctx)
   free(in_ctx);
 }
 
+int initialize_encoder_params(const char *encoder, char **enc_params_opt)
+{
+  if (strcmp(encoder, "libx264") == 0) {
+    *enc_params_opt = "x264-params";
+  }
+  else if (strcmp(encoder, "libx265") == 0) {
+    *enc_params_opt = "x265-params";
+  }
+  else if (strcmp(encoder, "libsvtav1") == 0) {
+    *enc_params_opt = "svtav1-params";
+  }
+  else {
+    fprintf(stderr, "Encoder not supported.\n");
+    return -1;
+  }
+  return 0;
+}
+
 typedef struct OutputContext {
   AVFormatContext *fmt_ctx;
   AVCodecContext *enc_ctx;
@@ -126,7 +144,7 @@ OutputContext *open_output(InputContext *in_ctx,
 
   if (!(out_ctx = malloc(sizeof(OutputContext)))) {
     fprintf(stderr,
-      "Failed to allocate OutputContext for file: '%s'\n", out_filename);
+      "Failed to allocate OutputContext\n");
     ret = AVERROR(ENOMEM);
     goto end;
   }
@@ -136,13 +154,13 @@ OutputContext *open_output(InputContext *in_ctx,
   out_ctx->enc_pkt = NULL;
 
   if (!(enc = avcodec_find_encoder_by_name(codec))) {
-    fprintf(stderr, "Failed to find encoder for file: '%s'\n", out_filename);
+    fprintf(stderr, "Failed to find encoder\n");
     ret = AVERROR(EINVAL);
     goto end;
   }
 
   if (!(out_ctx->enc_ctx = avcodec_alloc_context3(enc))) {
-    fprintf(stderr, "Failed to allocate encoder for file: '%s'\n", out_filename);
+    fprintf(stderr, "Failed to allocate encoder\n");
     ret = AVERROR(EINVAL);
     goto end;
   }
@@ -150,7 +168,7 @@ OutputContext *open_output(InputContext *in_ctx,
   in_stream = in_ctx->fmt_ctx->streams[in_ctx->stream_idx];
 
   out_ctx->enc_ctx->time_base = in_stream->time_base;
-  out_ctx->enc_ctx->framerate = av_guess_frame_rate(out_ctx->fmt_ctx, in_stream, NULL);
+  out_ctx->enc_ctx->framerate = in_stream->avg_frame_rate;
 
   out_ctx->enc_ctx->width = in_stream->codecpar->width;
   out_ctx->enc_ctx->height = in_stream->codecpar->height;
@@ -174,15 +192,15 @@ OutputContext *open_output(InputContext *in_ctx,
   }
 
   if ((ret = avcodec_open2(out_ctx->enc_ctx, enc, NULL)) < 0) {
-    fprintf(stderr, "Failed to open encoder for file: '%s'\n", out_filename);
+    fprintf(stderr, "Failed to open encoder\n");
     goto end;
   }
 
-  if ((ret = avformat_alloc_output_context2(&out_ctx->fmt_ctx, NULL, NULL, out_filename)))
+  if ((ret =
+    avformat_alloc_output_context2(&out_ctx->fmt_ctx, NULL, NULL, out_filename)))
   {
     fprintf(stderr,
-      "Failed to allocate output format context for file: '%s'\n",
-      out_filename);
+      "Failed to allocate output format context\n");
     goto end;
   }
 
@@ -190,13 +208,13 @@ OutputContext *open_output(InputContext *in_ctx,
     AV_DICT_DONT_OVERWRITE)) < 0)
   {
     fprintf(stderr,
-      "Failed to copy input metadata to output for file: '%s'\n", out_filename);
+      "Failed to copy input metadata to output\n");
     goto end;
   }
 
   if (!(out_stream = avformat_new_stream(out_ctx->fmt_ctx, NULL))) {
     fprintf(stderr,
-      "Failed to allocate new output stream for file: '%s'\n", out_filename);
+      "Failed to allocate new output stream\n");
     goto end;
   }
 
@@ -204,8 +222,7 @@ OutputContext *open_output(InputContext *in_ctx,
     in_stream->metadata, AV_DICT_DONT_OVERWRITE)))
   {
     fprintf(stderr,
-      "Failed to copy metadata from input stream to output stream \
-      for file: '%s'\n", out_filename);
+      "Failed to copy metadata from input stream to output stream\n");
     goto end;
   }
 
@@ -213,8 +230,7 @@ OutputContext *open_output(InputContext *in_ctx,
     avcodec_parameters_from_context(out_stream->codecpar, out_ctx->enc_ctx)))
   {
     fprintf(stderr,
-      "Failed to copy parameters from encoder to output stream for file: '%s'\n",
-      out_filename);
+      "Failed to copy parameters from encoder to output stream\n");
     goto end;
   }
 
@@ -232,14 +248,13 @@ OutputContext *open_output(InputContext *in_ctx,
     if ((ret =
       avio_open(&out_ctx->fmt_ctx->pb, out_filename, AVIO_FLAG_WRITE)) < 0)
     {
-      fprintf(stderr, "Failed to open output file: '%s'\n", out_filename);
+      fprintf(stderr, "Failed to create output file\n");
       goto end;
     }
   }
 
   if ((ret = avformat_write_header(out_ctx->fmt_ctx, NULL)) < 0) {
-    fprintf(stderr, "Failed to write header to output file: '%s'\n",
-      out_filename);
+    fprintf(stderr, "Failed to write header to output\n");
     goto end;
   }
 
@@ -262,24 +277,6 @@ void close_output(OutputContext *out_ctx)
   free(out_ctx);
 }
 
-int initialize_encoder_params(const char *encoder, char **enc_params_opt)
-{
-  if (strcmp(encoder, "libx264") == 0) {
-    *enc_params_opt = "x264-params";
-  }
-  else if (strcmp(encoder, "libx265") == 0) {
-    *enc_params_opt = "x265-params";
-  }
-  else if (strcmp(encoder, "libsvtav1") == 0) {
-    *enc_params_opt = "svtav1-params";
-  }
-  else {
-    fprintf(stderr, "Encoder not supported.\n");
-    return -1;
-  }
-  return 0;
-}
-
 int main(int argc, char **argv)
 {
   int ret = 0;
@@ -291,9 +288,10 @@ int main(int argc, char **argv)
 
   if (argc != 4 && argc != 5) {
     printf("\nUsage: %s <input file> <output file> <encoder> [<encoder-params>]\n\n\t"
-      "This example will take in a file with a video stream, transcode the video,\n\t"
-      "and save it to <output file>. Optionally, you can pass in a colon\n\t"
-      "seperated string with parameters that will be passed to the encoder.\n\t"
+      "This example will take in a file with a video stream,\n\t"
+      "transcode the video, and save it to <output file>.\n\t"
+      "Optionally, you can pass in a colon seperated string\n\t"
+      "with parameters that will be passed to the encoder.\n\t"
       "encoder-params is supported for libx264, libx265, and libsvtav1.\n\n",
       argv[0]);
     return 0;
@@ -307,7 +305,7 @@ int main(int argc, char **argv)
     enc_params = argv[4];
 
     if ((ret = initialize_encoder_params(codec, &enc_params_opt)) < 0) {
-      fprintf(stderr, "Failed to initialize encoder option params.\n");
+      fprintf(stderr, "Failed to initialize encoder option params\n");
       return -1;
     }
   }
@@ -347,12 +345,16 @@ int main(int argc, char **argv)
         goto end;
       }
 
-      while ((ret = avcodec_receive_packet(out_ctx->enc_ctx, out_ctx->enc_pkt)) >= 0)
+      while ((ret =
+        avcodec_receive_packet(out_ctx->enc_ctx, out_ctx->enc_pkt)) >= 0)
       {
         out_ctx->enc_pkt->stream_index = 0;
-        av_packet_rescale_ts(out_ctx->enc_pkt, in_stream->time_base, out_stream->time_base);
+        av_packet_rescale_ts(out_ctx->enc_pkt,
+          in_stream->time_base, out_stream->time_base);
 
-        if ((ret = av_interleaved_write_frame(out_ctx->fmt_ctx, out_ctx->enc_pkt)) < 0) {
+        if ((ret =
+          av_interleaved_write_frame(out_ctx->fmt_ctx, out_ctx->enc_pkt)) < 0)
+        {
           fprintf(stderr, "Failed to write packet to file.\n");
           goto end;
         }
