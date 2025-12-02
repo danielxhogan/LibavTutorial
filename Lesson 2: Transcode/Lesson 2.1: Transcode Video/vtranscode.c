@@ -305,6 +305,7 @@ int transcode(InputContext *in_ctx, AVStream *in_stream,
         avcodec_receive_packet(out_ctx->enc_ctx, out_ctx->enc_pkt)) >= 0)
       {
         out_ctx->enc_pkt->stream_index = 0;
+
         av_packet_rescale_ts(out_ctx->enc_pkt,
           in_stream->time_base, out_stream->time_base);
 
@@ -332,6 +333,8 @@ int transcode(InputContext *in_ctx, AVStream *in_stream,
     fprintf(stderr, "Failed to read frame from input file.\n");
     return ret;
   }
+
+  return 0;
 }
 
 int main(int argc, char **argv)
