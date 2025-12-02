@@ -337,6 +337,41 @@ int transcode(InputContext *in_ctx, AVStream *in_stream,
   return 0;
 }
 
+int flush_decoder(OutputContext *out_ctx, AVStream *out_stream,
+  AVStream *in_stream)
+{
+  int ret = 0;
+
+  if ((ret = avcodec_send_frame(out_ctx->enc_ctx, NULL)) < 0)
+  {
+    fprintf(stderr, "Failed to send frame to encoder.\n");
+    return ret;
+  }
+
+  while ((ret =
+    avcodec_receive_packet(out_ctx->enc_ctx, out_ctx->enc_pkt)) >= 0)
+  {
+    out_ctx->enc_pkt->stream_index = 0;
+
+    av_packet_rescale_ts(out_ctx->enc_pkt,
+      in_stream->time_base, out_stream->time_base);
+
+    if ((ret =
+      av_interleaved_write_frame(out_ctx->fmt_ctx, out_ctx->enc_pkt)) < 0)
+    {
+      fprintf(stderr, "Failed to write packet to file.\n");
+      return ret;
+    }
+  }
+
+  if ((ret != AVERROR(EAGAIN)) && (ret != AVERROR_EOF)) {
+    fprintf(stderr, "Failed to receive packet from encoder.\n");
+    return ret;
+  }
+
+  return 0;
+}
+
 int main(int argc, char **argv)
 {
   int ret = 0;
