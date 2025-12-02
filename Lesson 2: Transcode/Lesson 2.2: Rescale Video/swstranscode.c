@@ -1,6 +1,90 @@
 #include <libavformat/avformat.h>
 #include <libavcodec/avcodec.h>
+#include <libswscale/swscale.h>
+#include <libavutil/pixdesc.h>
 #include <libavutil/opt.h>
+
+#define OUTPUT_SCALE_ALGO SWS_BICUBIC
+
+typedef struct SwsOutputContext {
+  struct SwsContext *sws_ctx;
+  int width;
+  int height;
+  enum AVPixelFormat pix_fmt;
+  int scale_algo;
+  AVFrame *frame;
+} SwsOutputContext;
+
+SwsOutputContext *sws_output_context_alloc(int width, int height,
+  enum AVPixelFormat pix_fmt, int scale_algo, AVCodecParameters *input_params)
+{
+  SwsOutputContext *sws_out_ctx;
+
+  if (!(sws_out_ctx = malloc(sizeof(SwsOutputContext)))) {
+    fprintf(stderr, "Failed to allocate SwsOutputContext.\n");
+    return NULL;
+  }
+
+  sws_out_ctx->width = width;
+  sws_out_ctx->height = height;
+  sws_out_ctx->pix_fmt = pix_fmt;
+  sws_out_ctx->scale_algo = scale_algo;
+  sws_out_ctx->frame = NULL;
+
+  if (!(sws_out_ctx->sws_ctx = sws_getContext(
+    input_params->width,
+    input_params->height,
+    input_params->format,
+    width, height, pix_fmt, scale_algo,
+    NULL, NULL, NULL)))
+  {
+    fprintf(stderr, "Failed to get SwsContext.\n");
+    return NULL;
+  }
+
+  if (!(sws_out_ctx->frame = av_frame_alloc())) {
+    fprintf(stderr, "Failed to allocate sws_out_ctx->frame.\n");
+    return NULL;
+  }
+
+  sws_out_ctx->frame->width = width;
+  sws_out_ctx->frame->height = height;
+  sws_out_ctx->frame->format = pix_fmt;
+
+  if (av_frame_get_buffer(sws_out_ctx->frame, 0) < 0) {
+    fprintf(stderr, "Failed to allocate buffers for frame.\n");
+    return NULL;
+  }
+
+  return sws_out_ctx;
+}
+
+int sws_output_context_scale(SwsOutputContext *sws_out_ctx, AVFrame *frame)
+{
+  int ret = 0;
+
+  if ((ret = av_frame_make_writable(sws_out_ctx->frame)) < 0) {
+    fprintf(stderr, "Failed to make frame writable.\n");
+    return ret;
+  }
+
+  ret = sws_scale(sws_out_ctx->sws_ctx, (const uint8_t * const *) frame->data,
+    frame->linesize, 0, frame->height, sws_out_ctx->frame->data,
+    sws_out_ctx->frame->linesize);
+
+  sws_out_ctx->frame->pts = frame->pts;
+  sws_out_ctx->frame->pkt_dts = frame->pkt_dts;
+
+  return ret;
+}
+
+void sws_output_context_free(SwsOutputContext *sws_out_ctx)
+{
+  if (sws_out_ctx == NULL) return;
+  sws_freeContext(sws_out_ctx->sws_ctx);
+  av_frame_free(&sws_out_ctx->frame);
+  free(sws_out_ctx);
+}
 
 typedef struct InputContext {
   AVFormatContext *fmt_ctx;
@@ -135,8 +219,10 @@ typedef struct OutputContext {
 
 OutputContext *open_output(InputContext *in_ctx,
   const char *codec, char *enc_params, char *enc_params_opt,
+  int width, int height, enum AVPixelFormat pix_fmt,
   const char *out_filename)
 {
+  printf("width: %d\n", width);
   int ret = 0;
   OutputContext *out_ctx = NULL;
   AVStream *in_stream, *out_stream;
@@ -170,9 +256,9 @@ OutputContext *open_output(InputContext *in_ctx,
   out_ctx->enc_ctx->time_base = in_stream->time_base;
   out_ctx->enc_ctx->framerate = in_stream->avg_frame_rate;
 
-  out_ctx->enc_ctx->width = in_stream->codecpar->width;
-  out_ctx->enc_ctx->height = in_stream->codecpar->height;
-  out_ctx->enc_ctx->pix_fmt = in_stream->codecpar->format;
+  out_ctx->enc_ctx->width = width;
+  out_ctx->enc_ctx->height = height;
+  out_ctx->enc_ctx->pix_fmt = pix_fmt;
 
   out_ctx->enc_ctx->color_primaries = in_stream->codecpar->color_primaries;
   out_ctx->enc_ctx->color_trc = in_stream->codecpar->color_trc;
@@ -278,7 +364,8 @@ void close_output(OutputContext *out_ctx)
 }
 
 int transcode(InputContext *in_ctx, AVStream *in_stream,
-  OutputContext *out_ctx, AVStream *out_stream)
+  OutputContext *out_ctx, AVStream *out_stream,
+  SwsOutputContext *sws_out_ctx)
 {
   int ret = 0;
 
@@ -296,7 +383,12 @@ int transcode(InputContext *in_ctx, AVStream *in_stream,
 
     while ((ret = avcodec_receive_frame(in_ctx->dec_ctx, in_ctx->dec_frame)) >= 0)
     {
-      if ((ret = avcodec_send_frame(out_ctx->enc_ctx, in_ctx->dec_frame)) < 0) {
+      if ((ret = sws_output_context_scale(sws_out_ctx, in_ctx->dec_frame)) < 0) {
+        fprintf(stderr, "Failed to scale frame.\n");
+        return ret;
+      }
+
+      if ((ret = avcodec_send_frame(out_ctx->enc_ctx, sws_out_ctx->frame)) < 0) {
         fprintf(stderr, "Failed to send frame to encoder.\n");
         return ret;
       }
@@ -422,13 +514,17 @@ int flush_encoder(OutputContext *out_ctx, AVStream *out_stream,
 int main(int argc, char **argv)
 {
   int ret = 0;
-  char *in_filename, *out_filename, *codec,
-    *enc_params = NULL, *enc_params_opt = NULL;
+  char *in_filename, *out_filename,
+    *width_str, *height_str, *pix_fmt_str,
+    *codec, *enc_params = NULL, *enc_params_opt = NULL;
+  int width, height;
+  enum AVPixelFormat pix_fmt;
   InputContext *in_ctx = NULL;
   OutputContext *out_ctx = NULL;
+  SwsOutputContext *sws_out_ctx = NULL;
   AVStream *in_stream, *out_stream;
 
-  if (argc != 4 && argc != 5) {
+  if (argc != 7 && argc != 8) {
     printf("\nUsage: %s <input file> <output file> <encoder> [<encoder-params>]\n\n\t"
       "This example will take in a file with a video stream,\n\t"
       "transcode the video, and save it to <output file>.\n\t"
@@ -441,10 +537,28 @@ int main(int argc, char **argv)
 
   in_filename = argv[1];
   out_filename = argv[2];
-  codec = argv[3];
+  width_str = argv[3];
+  height_str = argv[4];
+  pix_fmt_str = argv[5];
+  codec = argv[6];
 
-  if (argc == 5) {
-    enc_params = argv[4];
+  if (!(width = atoi(width_str))) {
+    fprintf(stderr, "Invalid value entered for width.\n");
+    goto end;
+  }
+
+  if (!(height = atoi(height_str))) {
+    fprintf(stderr, "Invalid value entered for height.\n");
+    goto end;
+  }
+
+  if ((pix_fmt = av_get_pix_fmt(pix_fmt_str)) == AV_PIX_FMT_NONE) {
+    fprintf(stderr, "Invalid value entered for pix_fmt.\n");
+    goto end;
+  }
+
+  if (argc == 8) {
+    enc_params = argv[7];
 
     if ((ret = initialize_encoder_params(codec, &enc_params_opt)) < 0) {
       fprintf(stderr, "Failed to initialize encoder option params\n");
@@ -460,7 +574,8 @@ int main(int argc, char **argv)
   in_stream = in_ctx->fmt_ctx->streams[in_ctx->stream_idx];
 
   if (!(out_ctx =
-    open_output(in_ctx, codec, enc_params, enc_params_opt, out_filename)))
+    open_output(in_ctx, codec, enc_params, enc_params_opt,
+      width, height, pix_fmt, out_filename)))
   {
     fprintf(stderr, "Failed to open output file: '%s'\n", out_filename);
     goto end;
@@ -468,7 +583,15 @@ int main(int argc, char **argv)
 
   out_stream = out_ctx->fmt_ctx->streams[0];
 
-  if ((ret = transcode(in_ctx, in_stream, out_ctx, out_stream)) < 0) {
+  if (!(sws_out_ctx = sws_output_context_alloc(width, height,
+    pix_fmt, OUTPUT_SCALE_ALGO, in_stream->codecpar)))
+  {
+    fprintf(stderr, "Failed to allocate SwsOutputContext.\n");
+    ret = ENOMEM;
+    goto end;
+  }
+
+  if ((ret = transcode(in_ctx, in_stream, out_ctx, out_stream, sws_out_ctx)) < 0) {
     fprintf(stderr, "Failed to transcode\n");
     goto end;
   }
