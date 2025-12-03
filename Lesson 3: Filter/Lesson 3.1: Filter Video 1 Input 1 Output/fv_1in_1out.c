@@ -403,7 +403,9 @@ int encode_frame(AVStream *in_stream, OutputContext *out_ctx,
 {
   int ret = 0;
 
-  if ((ret = avcodec_send_frame(out_ctx->enc_ctx, flt_ctx->filtered_frame)) < 0) {
+  if ((ret =
+    avcodec_send_frame(out_ctx->enc_ctx, flt_ctx->filtered_frame)) < 0)
+  {
     fprintf(stderr, "Failed to send frame to encoder.\n");
     return ret;
   }
@@ -571,13 +573,13 @@ int main(int argc, char **argv)
   if ((ret = decode_filter_packet(in_ctx, in_stream,
     out_ctx, out_stream, flt_ctx)) < 0)
   {
-    fprintf(stderr, "Failed to flush decoder\n");
+    fprintf(stderr, "Failed to flush decoder.\n");
     goto end;
   }
 
   flt_ctx->filtered_frame = NULL;
   if ((ret = encode_frame(in_stream, out_ctx, out_stream, flt_ctx)) < 0) {
-    fprintf(stderr, "Failed to flush encoder\n");
+    fprintf(stderr, "Failed to flush encoder.\n");
     goto end;
   }
 
