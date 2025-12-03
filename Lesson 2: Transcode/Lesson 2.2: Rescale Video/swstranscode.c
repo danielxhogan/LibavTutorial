@@ -12,7 +12,7 @@ typedef struct SwsOutputContext {
   int height;
   enum AVPixelFormat pix_fmt;
   int scale_algo;
-  AVFrame *frame;
+  AVFrame *scaled_frame;
 } SwsOutputContext;
 
 SwsOutputContext *sws_output_context_alloc(int width, int height,
@@ -29,7 +29,7 @@ SwsOutputContext *sws_output_context_alloc(int width, int height,
   sws_out_ctx->height = height;
   sws_out_ctx->pix_fmt = pix_fmt;
   sws_out_ctx->scale_algo = scale_algo;
-  sws_out_ctx->frame = NULL;
+  sws_out_ctx->scaled_frame = NULL;
 
   if (!(sws_out_ctx->sws_ctx = sws_getContext(
     input_params->width,
@@ -42,16 +42,16 @@ SwsOutputContext *sws_output_context_alloc(int width, int height,
     return NULL;
   }
 
-  if (!(sws_out_ctx->frame = av_frame_alloc())) {
-    fprintf(stderr, "Failed to allocate sws_out_ctx->frame.\n");
+  if (!(sws_out_ctx->scaled_frame = av_frame_alloc())) {
+    fprintf(stderr, "Failed to allocate sws_out_ctx->scaled_frame.\n");
     return NULL;
   }
 
-  sws_out_ctx->frame->width = width;
-  sws_out_ctx->frame->height = height;
-  sws_out_ctx->frame->format = pix_fmt;
+  sws_out_ctx->scaled_frame->width = width;
+  sws_out_ctx->scaled_frame->height = height;
+  sws_out_ctx->scaled_frame->format = pix_fmt;
 
-  if (av_frame_get_buffer(sws_out_ctx->frame, 0) < 0) {
+  if (av_frame_get_buffer(sws_out_ctx->scaled_frame, 0) < 0) {
     fprintf(stderr, "Failed to allocate buffers for frame.\n");
     return NULL;
   }
@@ -63,17 +63,17 @@ int sws_output_context_scale(SwsOutputContext *sws_out_ctx, AVFrame *frame)
 {
   int ret = 0;
 
-  if ((ret = av_frame_make_writable(sws_out_ctx->frame)) < 0) {
+  if ((ret = av_frame_make_writable(sws_out_ctx->scaled_frame)) < 0) {
     fprintf(stderr, "Failed to make frame writable.\n");
     return ret;
   }
 
   ret = sws_scale(sws_out_ctx->sws_ctx, (const uint8_t * const *) frame->data,
-    frame->linesize, 0, frame->height, sws_out_ctx->frame->data,
-    sws_out_ctx->frame->linesize);
+    frame->linesize, 0, frame->height, sws_out_ctx->scaled_frame->data,
+    sws_out_ctx->scaled_frame->linesize);
 
-  sws_out_ctx->frame->pts = frame->pts;
-  sws_out_ctx->frame->pkt_dts = frame->pkt_dts;
+  sws_out_ctx->scaled_frame->pts = frame->pts;
+  sws_out_ctx->scaled_frame->pkt_dts = frame->pkt_dts;
 
   return ret;
 }
@@ -82,7 +82,7 @@ void sws_output_context_free(SwsOutputContext *sws_out_ctx)
 {
   if (sws_out_ctx == NULL) return;
   sws_freeContext(sws_out_ctx->sws_ctx);
-  av_frame_free(&sws_out_ctx->frame);
+  av_frame_free(&sws_out_ctx->scaled_frame);
   free(sws_out_ctx);
 }
 
