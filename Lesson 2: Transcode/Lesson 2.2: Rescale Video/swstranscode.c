@@ -614,6 +614,7 @@ int main(int argc, char **argv)
 end:
   close_input(in_ctx);
   close_output(out_ctx);
+  sws_output_context_free(sws_out_ctx);
 
   if (ret < 0 && ret != AVERROR_EOF && ret != AVERROR(EAGAIN)) {
     fprintf(stderr, "\nLibav Error: %s\n", av_err2str(ret));
