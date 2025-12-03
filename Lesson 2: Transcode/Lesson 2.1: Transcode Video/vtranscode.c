@@ -19,7 +19,7 @@ InputContext *open_input(const char *in_filename, unsigned int stream_idx)
 
   if (!(in_ctx = malloc(sizeof(InputContext)))) {
     fprintf(stderr,
-      "Failed to allocate InputContext\n");
+      "Failed to allocate InputContext.\n");
     ret = AVERROR(ENOMEM);
     goto end;
   }
@@ -33,17 +33,17 @@ InputContext *open_input(const char *in_filename, unsigned int stream_idx)
   if ((ret =
     avformat_open_input(&in_ctx->fmt_ctx, in_filename, NULL, NULL)) < 0)
   {
-    fprintf(stderr, "Failed to open AVFormatContext\n");
+    fprintf(stderr, "Failed to open AVFormatContext.\n");
     goto end;
   }
 
   if ((ret = avformat_find_stream_info(in_ctx->fmt_ctx, NULL)) < 0) {
-    fprintf(stderr, "Failed to find stream info\n");
+    fprintf(stderr, "Failed to find stream info.\n");
     goto end;
   }
 
   if (stream_idx >= in_ctx->fmt_ctx->nb_streams) {
-    fprintf(stderr, "Invalid stream index\n");
+    fprintf(stderr, "Invalid stream index.\n");
     ret = -1;
     goto end;
   }
@@ -51,14 +51,14 @@ InputContext *open_input(const char *in_filename, unsigned int stream_idx)
   in_stream = in_ctx->fmt_ctx->streams[stream_idx];
 
   if (!(dec = avcodec_find_decoder(in_stream->codecpar->codec_id))) {
-    fprintf(stderr, "Failed to find decoder for stream: '%d'\n", stream_idx);
+    fprintf(stderr, "Failed to find decoder for stream: '%d'.\n", stream_idx);
     ret = AVERROR(EINVAL);
     goto end;
   }
 
   if (!(in_ctx->dec_ctx = avcodec_alloc_context3(dec))) {
     fprintf(stderr,
-      "Failed to allocate decoder for stream: '%d'\n", stream_idx);
+      "Failed to allocate decoder for stream: '%d'.\n", stream_idx);
     ret = AVERROR(EINVAL);
     goto end;
   }
@@ -67,32 +67,31 @@ InputContext *open_input(const char *in_filename, unsigned int stream_idx)
     avcodec_parameters_to_context(in_ctx->dec_ctx, in_stream->codecpar)) < 0)
   {
     fprintf(stderr,
-      "Failed to copy parameters from input stream: '%d' to decoder\n",
+      "Failed to copy parameters from input stream: '%d' to decoder.\n",
       stream_idx);
     goto end;
   }
 
   if ((ret = avcodec_open2(in_ctx->dec_ctx, dec, NULL)) < 0) {
-    fprintf(stderr, "Failed to open decoder for stream: '%d'\n",
+    fprintf(stderr, "Failed to open decoder for stream: '%d'.\n",
       stream_idx);
     goto end;
   }
 
   if (!(in_ctx->dec_frame = av_frame_alloc())) {
-    fprintf(stderr, "Failed to allocate AVFrame\n");
+    fprintf(stderr, "Failed to allocate AVFrame.\n");
     ret = AVERROR(ENOMEM);
     goto end;
   }
 
   if (!(in_ctx->init_pkt = av_packet_alloc())) {
-    fprintf(stderr, "Failed to allocate AVPacket\n");
+    fprintf(stderr, "Failed to allocate AVPacket.\n");
     ret = AVERROR(ENOMEM);
     goto end;
   }
 
 end:
   if (ret < 0 && ret != AVERROR_EOF && ret != AVERROR(EAGAIN)) {
-    fprintf(stderr, "\nLibav Error: %s\n", av_err2str(ret));
     return NULL;
   }
 
@@ -144,7 +143,7 @@ OutputContext *open_output(InputContext *in_ctx,
 
   if (!(out_ctx = malloc(sizeof(OutputContext)))) {
     fprintf(stderr,
-      "Failed to allocate OutputContext\n");
+      "Failed to allocate OutputContext.\n");
     ret = AVERROR(ENOMEM);
     goto end;
   }
@@ -154,13 +153,13 @@ OutputContext *open_output(InputContext *in_ctx,
   out_ctx->enc_pkt = NULL;
 
   if (!(enc = avcodec_find_encoder_by_name(codec))) {
-    fprintf(stderr, "Failed to find encoder\n");
+    fprintf(stderr, "Failed to find encoder.\n");
     ret = AVERROR(EINVAL);
     goto end;
   }
 
   if (!(out_ctx->enc_ctx = avcodec_alloc_context3(enc))) {
-    fprintf(stderr, "Failed to allocate encoder\n");
+    fprintf(stderr, "Failed to allocate encoder.\n");
     ret = AVERROR(EINVAL);
     goto end;
   }
@@ -186,13 +185,13 @@ OutputContext *open_output(InputContext *in_ctx,
     if ((ret = av_opt_set(out_ctx->enc_ctx->priv_data,
       enc_params_opt, enc_params, 0)) < 0)
     {
-      fprintf(stderr, "Failed to set %s\n", enc_params_opt);
+      fprintf(stderr, "Failed to set '%s'.\n", enc_params_opt);
       goto end;
     }
   }
 
   if ((ret = avcodec_open2(out_ctx->enc_ctx, enc, NULL)) < 0) {
-    fprintf(stderr, "Failed to open encoder\n");
+    fprintf(stderr, "Failed to open encoder.\n");
     goto end;
   }
 
@@ -200,7 +199,7 @@ OutputContext *open_output(InputContext *in_ctx,
     avformat_alloc_output_context2(&out_ctx->fmt_ctx, NULL, NULL, out_filename)))
   {
     fprintf(stderr,
-      "Failed to allocate output format context\n");
+      "Failed to allocate output format context.\n");
     goto end;
   }
 
@@ -208,13 +207,13 @@ OutputContext *open_output(InputContext *in_ctx,
     AV_DICT_DONT_OVERWRITE)) < 0)
   {
     fprintf(stderr,
-      "Failed to copy input metadata to output\n");
+      "Failed to copy input metadata to output.\n");
     goto end;
   }
 
   if (!(out_stream = avformat_new_stream(out_ctx->fmt_ctx, NULL))) {
     fprintf(stderr,
-      "Failed to allocate new output stream\n");
+      "Failed to allocate new output stream.\n");
     goto end;
   }
 
@@ -222,7 +221,7 @@ OutputContext *open_output(InputContext *in_ctx,
     in_stream->metadata, AV_DICT_DONT_OVERWRITE)))
   {
     fprintf(stderr,
-      "Failed to copy metadata from input stream to output stream\n");
+      "Failed to copy metadata from input stream to output stream.\n");
     goto end;
   }
 
@@ -230,7 +229,7 @@ OutputContext *open_output(InputContext *in_ctx,
     avcodec_parameters_from_context(out_stream->codecpar, out_ctx->enc_ctx)))
   {
     fprintf(stderr,
-      "Failed to copy parameters from encoder to output stream\n");
+      "Failed to copy parameters from encoder to output stream.\n");
     goto end;
   }
 
@@ -239,7 +238,7 @@ OutputContext *open_output(InputContext *in_ctx,
   out_stream->avg_frame_rate = in_stream->avg_frame_rate;
 
   if (!(out_ctx->enc_pkt = av_packet_alloc())) {
-    fprintf(stderr, "Failed to allocate AVPacket\n");
+    fprintf(stderr, "Failed to allocate AVPacket.\n");
     ret = AVERROR(ENOMEM);
     goto end;
   }
@@ -248,19 +247,18 @@ OutputContext *open_output(InputContext *in_ctx,
     if ((ret =
       avio_open(&out_ctx->fmt_ctx->pb, out_filename, AVIO_FLAG_WRITE)) < 0)
     {
-      fprintf(stderr, "Failed to create output file\n");
+      fprintf(stderr, "Failed to create output file.\n");
       goto end;
     }
   }
 
   if ((ret = avformat_write_header(out_ctx->fmt_ctx, NULL)) < 0) {
-    fprintf(stderr, "Failed to write header to output\n");
+    fprintf(stderr, "Failed to write header to output.\n");
     goto end;
   }
 
 end:
   if (ret < 0 && ret != AVERROR_EOF && ret != AVERROR(EAGAIN)) {
-    fprintf(stderr, "\nLibav Error: %s\n", av_err2str(ret));
     return NULL;
   }
 
@@ -391,13 +389,13 @@ int main(int argc, char **argv)
     enc_params = argv[4];
 
     if ((ret = initialize_encoder_params(codec, &enc_params_opt)) < 0) {
-      fprintf(stderr, "Failed to initialize encoder option params\n");
+      fprintf(stderr, "Failed to initialize encoder option params.\n");
       return -1;
     }
   }
 
   if (!(in_ctx = open_input(in_filename, 0))) {
-    fprintf(stderr, "Failed to open input file: '%s'\n", in_filename);
+    fprintf(stderr, "Failed to open input file: '%s'.\n", in_filename);
     goto end;
   }
 
@@ -406,26 +404,26 @@ int main(int argc, char **argv)
   if (!(out_ctx =
     open_output(in_ctx, codec, enc_params, enc_params_opt, out_filename)))
   {
-    fprintf(stderr, "Failed to open output file: '%s'\n", out_filename);
+    fprintf(stderr, "Failed to open output file: '%s'.\n", out_filename);
     goto end;
   }
 
   out_stream = out_ctx->fmt_ctx->streams[0];
 
   if ((ret = transcode(in_ctx, in_stream, out_ctx, out_stream)) < 0) {
-    fprintf(stderr, "Failed to transcode\n");
+    fprintf(stderr, "Failed to transcode.\n");
     goto end;
   }
 
   in_ctx->init_pkt = NULL;
   if ((ret = decode_packet(in_ctx, in_stream, out_ctx, out_stream)) < 0) {
-    fprintf(stderr, "Failed to flush decoder\n");
+    fprintf(stderr, "Failed to flush decoder.\n");
     goto end;
   }
 
   in_ctx->dec_frame = NULL;
   if ((ret = encode_frame(in_ctx, in_stream, out_ctx, out_stream)) < 0) {
-    fprintf(stderr, "Failed to flush encoder\n");
+    fprintf(stderr, "Failed to flush encoder.\n");
     goto end;
   }
 
@@ -439,7 +437,7 @@ end:
   close_output(out_ctx);
 
   if (ret < 0 && ret != AVERROR_EOF && ret != AVERROR(EAGAIN)) {
-    fprintf(stderr, "\nLibav Error: %s\n", av_err2str(ret));
+    fprintf(stderr, "\nLibav Error: %s.\n", av_err2str(ret));
     return ret;
   }
 
