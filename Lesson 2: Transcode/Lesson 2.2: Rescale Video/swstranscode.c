@@ -90,7 +90,7 @@ typedef struct InputContext {
   AVFormatContext *fmt_ctx;
   AVCodecContext *dec_ctx;
   AVFrame *dec_frame;
-  AVPacket *pkt;
+  AVPacket *init_pkt;
   int stream_idx;
 } InputContext;
 
@@ -111,7 +111,7 @@ InputContext *open_input(const char *in_filename, unsigned int stream_idx)
   in_ctx->fmt_ctx = NULL;
   in_ctx->dec_ctx = NULL;
   in_ctx->dec_frame = NULL;
-  in_ctx->pkt = NULL;
+  in_ctx->init_pkt = NULL;
   in_ctx->stream_idx = stream_idx;
 
   if ((ret =
@@ -168,7 +168,7 @@ InputContext *open_input(const char *in_filename, unsigned int stream_idx)
     goto end;
   }
 
-  if (!(in_ctx->pkt = av_packet_alloc())) {
+  if (!(in_ctx->init_pkt = av_packet_alloc())) {
     fprintf(stderr, "Failed to allocate AVPacket\n");
     ret = AVERROR(ENOMEM);
     goto end;
@@ -189,7 +189,7 @@ void close_input(InputContext *in_ctx)
   avformat_close_input(&in_ctx->fmt_ctx);
   avcodec_free_context(&in_ctx->dec_ctx);
   av_frame_free(&in_ctx->dec_frame);
-  av_packet_free(&in_ctx->pkt);
+  av_packet_free(&in_ctx->init_pkt);
   free(in_ctx);
 }
 
@@ -369,14 +369,14 @@ int transcode(InputContext *in_ctx, AVStream *in_stream,
 {
   int ret = 0;
 
-  while ((ret = av_read_frame(in_ctx->fmt_ctx, in_ctx->pkt)) >= 0)
+  while ((ret = av_read_frame(in_ctx->fmt_ctx, in_ctx->init_pkt)) >= 0)
   {
-    if (!(in_ctx->pkt->stream_index == in_ctx->stream_idx)) {
-      av_packet_unref(in_ctx->pkt);
+    if (!(in_ctx->init_pkt->stream_index == in_ctx->stream_idx)) {
+      av_packet_unref(in_ctx->init_pkt);
       continue;
     }
 
-    if ((ret = avcodec_send_packet(in_ctx->dec_ctx, in_ctx->pkt)) < 0) {
+    if ((ret = avcodec_send_packet(in_ctx->dec_ctx, in_ctx->init_pkt)) < 0) {
       fprintf(stderr, "Failed to send packet to decoder.\n");
       return ret;
     }
