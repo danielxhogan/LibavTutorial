@@ -256,49 +256,6 @@ OutputContext *open_output(InputContext *in_ctx, int width, int height,
     return NULL;
   }
 
-  // if (!(enc = avcodec_find_encoder_by_name(codec))) {
-  //   fprintf(stderr, "Failed to find encoder.\n");
-  //   ret = AVERROR(EINVAL);
-  //   return NULL;
-  // }
-
-  // if (!(out_ctx->enc_ctx1 = avcodec_alloc_context3(enc))) {
-  //   fprintf(stderr, "Failed to allocate encoder.\n");
-  //   ret = AVERROR(EINVAL);
-  //   return NULL;
-  // }
-
-
-  // out_ctx->enc_ctx1->time_base = in_stream->time_base;
-  // out_ctx->enc_ctx1->framerate = in_stream->avg_frame_rate;
-
-  // out_ctx->enc_ctx1->width = in_stream->codecpar->width;
-  // out_ctx->enc_ctx1->height = in_stream->codecpar->height;
-  // out_ctx->enc_ctx1->pix_fmt = in_stream->codecpar->format;
-
-  // out_ctx->enc_ctx1->color_primaries = in_stream->codecpar->color_primaries;
-  // out_ctx->enc_ctx1->color_trc = in_stream->codecpar->color_trc;
-  // out_ctx->enc_ctx1->colorspace = in_stream->codecpar->color_space;
-  // out_ctx->enc_ctx1->color_range = in_stream->codecpar->color_range;
-  // out_ctx->enc_ctx1->chroma_sample_location = in_stream->codecpar->chroma_location;
-
-  // out_ctx->enc_ctx1->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
-
-  // if (enc_params && enc_params_opt) {
-  //   if ((ret = av_opt_set(out_ctx->enc_ctx1->priv_data,
-  //     enc_params_opt, enc_params, 0)) < 0)
-  //   {
-  //     fprintf(stderr, "Failed to set %s.\n", enc_params_opt);
-  //     return NULL;
-  //   }
-  // }
-
-  // if ((ret = avcodec_open2(out_ctx->enc_ctx1, enc, NULL)) < 0) {
-  //   fprintf(stderr, "Failed to open encoder.\n");
-  //   return NULL;
-  // }
-
-
   if ((ret =
     avformat_alloc_output_context2(&out_ctx->fmt_ctx, NULL, NULL, out_filename)))
   {
@@ -324,32 +281,6 @@ OutputContext *open_output(InputContext *in_ctx, int width, int height,
     fprintf(stderr, "Failed to initialize output stream for first stream.\n");
     return NULL;
   }
-
-  // if (!(out_stream = avformat_new_stream(out_ctx->fmt_ctx, NULL))) {
-  //   fprintf(stderr,
-  //     "Failed to allocate new output stream.\n");
-  //   return NULL;
-  // }
-
-  // if ((ret = av_dict_copy(&out_stream->metadata,
-  //   in_stream->metadata, AV_DICT_DONT_OVERWRITE)))
-  // {
-  //   fprintf(stderr,
-  //     "Failed to copy metadata from input stream to output stream.\n");
-  //   return NULL;
-  // }
-
-  // if ((ret =
-  //   avcodec_parameters_from_context(out_stream->codecpar, out_ctx->enc_ctx1)))
-  // {
-  //   fprintf(stderr,
-  //     "Failed to copy parameters from encoder to output stream.\n");
-  //   return NULL;
-  // }
-
-  // out_stream->time_base = out_ctx->enc_ctx1->time_base;
-  // out_stream->r_frame_rate = in_stream->r_frame_rate;
-  // out_stream->avg_frame_rate = in_stream->avg_frame_rate;
 
   if (!(out_ctx->enc_pkt = av_packet_alloc())) {
     fprintf(stderr, "Failed to allocate AVPacket.\n");
@@ -496,28 +427,6 @@ FilterContext *filter_context_init(InputContext *in_ctx, char *filter_descr)
     fprintf(stderr, "Failed to initialize first buffer sink context.\n");
     goto end;
   }
-
-  // if (!(flt_ctx->buffersink_ctx1 =
-  //   avfilter_graph_alloc_filter(flt_ctx->filter_graph, buffersink, "out")))
-  // {
-  //   fprintf(stderr, "Failed to create buffer sink.\n");
-  //   ret = AVERROR(ENOMEM);
-  //   goto end;
-  // }
-
-  // pix_fmt = av_get_pix_fmt_name(in_stream->codecpar->format);
-
-  // if ((ret = av_opt_set(flt_ctx->buffersink_ctx1, "pixel_formats",
-  //   pix_fmt, AV_OPT_SEARCH_CHILDREN)))
-  // {
-  //   fprintf(stderr, "Failed to set pixel format on buffersink.\n");
-  //   goto end;
-  // }
-
-  // if ((ret = avfilter_init_dict(flt_ctx->buffersink_ctx1, NULL))) {
-  //   fprintf(stderr, "Failed to initialize buffersink.\n");
-  //   goto end;
-  // }
 
   outputs->name = av_strdup("in");
   outputs->filter_ctx = flt_ctx->buffersrc_ctx;
