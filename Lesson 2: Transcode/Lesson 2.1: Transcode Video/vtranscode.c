@@ -18,8 +18,7 @@ InputContext *open_input(const char *in_filename, unsigned int stream_idx)
   const AVCodec *dec;
 
   if (!(in_ctx = malloc(sizeof(InputContext)))) {
-    fprintf(stderr,
-      "Failed to allocate InputContext.\n");
+    fprintf(stderr, "Failed to allocate InputContext.\n");
     ret = AVERROR(ENOMEM);
     return NULL;
   }
@@ -137,8 +136,7 @@ OutputContext *open_output(InputContext *in_ctx,
   const AVCodec *enc;
 
   if (!(out_ctx = malloc(sizeof(OutputContext)))) {
-    fprintf(stderr,
-      "Failed to allocate OutputContext.\n");
+    fprintf(stderr, "Failed to allocate OutputContext.\n");
     ret = AVERROR(ENOMEM);
     return NULL;
   }
