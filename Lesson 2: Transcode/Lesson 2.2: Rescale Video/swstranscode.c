@@ -102,8 +102,7 @@ InputContext *open_input(const char *in_filename, unsigned int stream_idx)
   const AVCodec *dec;
 
   if (!(in_ctx = malloc(sizeof(InputContext)))) {
-    fprintf(stderr,
-      "Failed to allocate InputContext\n");
+    fprintf(stderr, "Failed to allocate InputContext\n");
     ret = AVERROR(ENOMEM);
     return NULL;
   }
@@ -223,8 +222,7 @@ OutputContext *open_output(InputContext *in_ctx,
   const AVCodec *enc;
 
   if (!(out_ctx = malloc(sizeof(OutputContext)))) {
-    fprintf(stderr,
-      "Failed to allocate OutputContext\n");
+    fprintf(stderr, "Failed to allocate OutputContext\n");
     ret = AVERROR(ENOMEM);
     return NULL;
   }
@@ -453,11 +451,10 @@ int transcode(InputContext *in_ctx, AVStream *in_stream,
 
 int main(int argc, char **argv)
 {
-  int ret = 0;
+  int width, height, ret = 0;
   char *in_filename, *out_filename,
     *width_str, *height_str, *pix_fmt_str,
     *codec, *enc_params = NULL, *enc_params_opt = NULL;
-  int width, height;
   enum AVPixelFormat pix_fmt;
   InputContext *in_ctx = NULL;
   OutputContext *out_ctx = NULL;
