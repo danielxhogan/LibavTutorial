@@ -46,10 +46,6 @@ int initialize_decoder(AVCodecContext **dec_ctx, AVStream *in_stream)
 
   (*dec_ctx)->time_base = in_stream->time_base;
 
-  printf("height: %d\n", in_stream->codecpar->height);
-  printf("width: %d\n", in_stream->codecpar->width);
-  printf("pix_fmt: %d\n", in_stream->codecpar->format);
-
   if ((ret = avcodec_open2(*dec_ctx, dec, NULL)) < 0) {
     fprintf(stderr, "Failed to open decoder.\n");
     return ret;
@@ -896,7 +892,6 @@ int main(int argc, char **argv)
     goto end;
   }
 
-  printf("flushing decoder\n");
   in_ctx->init_pkt = NULL;
   if ((ret = decode_packet(in_ctx,
     out_ctx, out_stream, flt_ctx, sub_to_frame_ctx)) < 0)
@@ -905,7 +900,6 @@ int main(int argc, char **argv)
     goto end;
   }
 
-  printf("flushing filter.\n");
   if ((ret = filter_encode_frame(in_ctx, out_ctx,
     flt_ctx, flt_ctx->v_buffersrc_ctx, NULL)) < 0)
   {
@@ -920,14 +914,11 @@ int main(int argc, char **argv)
     goto end;
   }
 
-  printf("flushing encoder\n");
   flt_ctx->filtered_frame = NULL;
   if ((ret = encode_frame(in_ctx, out_ctx, flt_ctx)) < 0) {
     fprintf(stderr, "Failed to flush encoder.\n");
     goto end;
   }
-
-  printf("done flushing\n");
 
   if ((ret = av_write_trailer(out_ctx->fmt_ctx)) < 0) {
     fprintf(stderr, "Failed to write trailer to file.\n");
