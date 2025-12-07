@@ -573,9 +573,7 @@ int encode_frame(AVStream *in_stream, OutputContext *out_ctx,
   int ret = 0;
   AVStream *out_stream = out_ctx->fmt_ctx->streams[out_stream_idx];
 
-  if ((ret =
-    avcodec_send_frame(enc_ctx, frame)) < 0)
-  {
+  if ((ret = avcodec_send_frame(enc_ctx, frame)) < 0) {
     fprintf(stderr, "Failed to send frame to encoder.\n");
     return ret;
   }
@@ -642,10 +640,13 @@ int decode_filter_packet(InputContext *in_ctx, AVStream *in_stream,
     while ((ret = av_buffersink_get_frame(flt_ctx->buffersink_ctx2,
       flt_ctx->filtered_frame2)) >= 0)
     {
-      if ((ret = sws_output_context_scale(sws_out_ctx, flt_ctx->filtered_frame2)) < 0) {
+      if ((ret =
+        sws_output_context_scale(sws_out_ctx, flt_ctx->filtered_frame2)) < 0)
+      {
         fprintf(stderr, "Failed to scale frame.\n");
         return ret;
       }
+
       if ((ret = encode_frame(in_stream, out_ctx, out_ctx->enc_ctx2,
         sws_out_ctx->scaled_frame, 1)) < 0)
       {
