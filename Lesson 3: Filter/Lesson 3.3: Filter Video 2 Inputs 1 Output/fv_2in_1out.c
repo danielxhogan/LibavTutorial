@@ -44,6 +44,8 @@ int initialize_decoder(AVCodecContext **dec_ctx, AVStream *in_stream)
     return ret;
   }
 
+  (*dec_ctx)->time_base = in_stream->time_base;
+
   printf("height: %d\n", in_stream->codecpar->height);
   printf("width: %d\n", in_stream->codecpar->width);
   printf("pix_fmt: %d\n", in_stream->codecpar->format);
@@ -563,7 +565,7 @@ int sub_to_frame_sws_context_alloc(SubToFrameContext *sub_to_frame_ctx,
     sub_to_frame_ctx->scale_algo, NULL, NULL, NULL)))
   {
     fprintf(stderr, "Failed to get SwsContext.\n");
-    return NULL;
+    return AVERROR_UNKNOWN;
   }
 
   return 0;
@@ -624,12 +626,11 @@ void sub_to_frame_context_free(SubToFrameContext *sub_to_frame_ctx)
   free(sub_to_frame_ctx);
 }
 
+
 int encode_frame(InputContext *in_ctx, OutputContext *out_ctx,
   FilterContext *flt_ctx)
 {
   int ret = 0;
-  AVStream *in_stream = in_ctx->fmt_ctx->streams[in_ctx->init_pkt->stream_index];
-  AVStream *out_stream = out_ctx->fmt_ctx->streams[0];
 
   if ((ret =
     avcodec_send_frame(out_ctx->enc_ctx, flt_ctx->filtered_frame)) < 0)
@@ -644,7 +645,7 @@ int encode_frame(InputContext *in_ctx, OutputContext *out_ctx,
     out_ctx->enc_pkt->stream_index = 0;
 
     av_packet_rescale_ts(out_ctx->enc_pkt,
-      in_stream->time_base, out_stream->time_base);
+      in_ctx->v_dec_ctx->time_base, out_ctx->enc_ctx->time_base);
 
     if ((ret =
       av_interleaved_write_frame(out_ctx->fmt_ctx, out_ctx->enc_pkt)) < 0)
@@ -662,6 +663,35 @@ int encode_frame(InputContext *in_ctx, OutputContext *out_ctx,
   return 0;
 }
 
+int filter_encode_frame(InputContext *in_ctx, OutputContext *out_ctx,
+  FilterContext *flt_ctx, AVFilterContext *buffersrc_ctx, AVFrame *frame)
+{
+  int ret = 0;
+
+  if ((ret = av_buffersrc_add_frame_flags(buffersrc_ctx,
+    frame, AV_BUFFERSRC_FLAG_KEEP_REF)) < 0)
+  {
+    fprintf(stderr, "Failed to add frame to buffer source.\n");
+    return ret;
+  }
+
+  while ((ret = av_buffersink_get_frame(flt_ctx->buffersink_ctx,
+    flt_ctx->filtered_frame)) >= 0)
+  {
+    if ((ret = encode_frame(in_ctx, out_ctx, flt_ctx)) < 0) {
+    fprintf(stderr, "Failed to encode frame.\n");
+    return ret;
+    }
+  }
+
+  if ((ret != AVERROR(EAGAIN)) && (ret != AVERROR_EOF)) {
+    fprintf(stderr, "Failed to get frame from buffer sink.\n");
+    return ret;
+  }
+
+  return 0;
+}
+
 int decode_video_packet(InputContext *in_ctx, OutputContext *out_ctx,
   FilterContext *flt_ctx, SubToFrameContext *sub_to_frame_ctx)
 {
@@ -672,26 +702,13 @@ int decode_video_packet(InputContext *in_ctx, OutputContext *out_ctx,
     return ret;
   }
 
-  while ((ret = avcodec_receive_frame(in_ctx->v_dec_ctx, in_ctx->v_dec_frame)) >= 0)
+  while ((ret =
+    avcodec_receive_frame(in_ctx->v_dec_ctx, in_ctx->v_dec_frame)) >= 0)
   {
-    if ((ret = av_buffersrc_add_frame_flags(flt_ctx->v_buffersrc_ctx,
-      in_ctx->v_dec_frame, AV_BUFFERSRC_FLAG_KEEP_REF)) < 0)
+    if ((ret = filter_encode_frame(in_ctx, out_ctx,
+      flt_ctx, flt_ctx->v_buffersrc_ctx, in_ctx->v_dec_frame)) < 0)
     {
-      fprintf(stderr, "Failed to add frame to buffer source.\n");
-      return ret;
-    }
-
-    while ((ret = av_buffersink_get_frame(flt_ctx->buffersink_ctx,
-      flt_ctx->filtered_frame)) >= 0)
-    {
-      if ((ret = encode_frame(in_ctx, out_ctx, flt_ctx)) < 0) {
-      fprintf(stderr, "Failed to encode frame.\n");
-      return ret;
-      }
-    }
-
-    if ((ret != AVERROR(EAGAIN)) && (ret != AVERROR_EOF)) {
-      fprintf(stderr, "Failed to get frame from buffer sink.\n");
+      fprintf(stderr, "Failed to filter and encode frame.");
       return ret;
     }
   }
@@ -724,24 +741,10 @@ int decode_subtitle_packet(InputContext *in_ctx, OutputContext *out_ctx,
     return ret;
   }
 
-  if ((ret = av_buffersrc_add_frame_flags(flt_ctx->s_buffersrc_ctx,
-    sub_to_frame_ctx->subtitle_frame, AV_BUFFERSRC_FLAG_KEEP_REF)) < 0)
+  if ((ret = filter_encode_frame(in_ctx, out_ctx,
+    flt_ctx, flt_ctx->s_buffersrc_ctx, sub_to_frame_ctx->subtitle_frame)) < 0)
   {
-    fprintf(stderr, "Failed to add frame to buffer source.\n");
-    return ret;
-  }
-
-  while ((ret = av_buffersink_get_frame(flt_ctx->buffersink_ctx,
-    flt_ctx->filtered_frame)) >= 0)
-  {
-    if ((ret = encode_frame(in_ctx, out_ctx, flt_ctx)) < 0) {
-    fprintf(stderr, "Failed to encode frame.\n");
-    return ret;
-    }
-  }
-
-  if ((ret != AVERROR(EAGAIN)) && (ret != AVERROR_EOF)) {
-    fprintf(stderr, "Failed to get frame from buffer sink.\n");
+    fprintf(stderr, "Failed to filter and encode frame.\n");
     return ret;
   }
 
@@ -754,9 +757,12 @@ int decode_packet(InputContext *in_ctx, OutputContext *out_ctx,
 {
   int ret = 0;
 
-  if (!in_ctx->init_pkt || in_ctx->init_pkt->stream_index == in_ctx->v_stream_idx)
+  if (!in_ctx->init_pkt ||
+    in_ctx->init_pkt->stream_index == in_ctx->v_stream_idx)
   {
-    if ((ret = decode_video_packet(in_ctx, out_ctx, flt_ctx, sub_to_frame_ctx)) < 0) {
+    if ((ret =
+      decode_video_packet(in_ctx, out_ctx, flt_ctx, sub_to_frame_ctx)) < 0)
+    {
       fprintf(stderr, "Failed to decode video packet.\n");
       return ret;
     }
@@ -878,29 +884,50 @@ int main(int argc, char **argv)
   }
 
   if (!(sub_to_frame_ctx = sub_to_frame_context_alloc(in_ctx))) {
-    fprintf(stderr, "Failed to initialize subtitle to frame converter context.\n");
+    fprintf(stderr,
+      "Failed to initialize subtitle to frame converter context.\n");
     goto end;
   }
 
-  if ((ret = transcode(in_ctx, out_ctx, out_stream, flt_ctx, sub_to_frame_ctx)) < 0)
+  if ((ret =
+    transcode(in_ctx, out_ctx, out_stream, flt_ctx, sub_to_frame_ctx)) < 0)
   {
     fprintf(stderr, "Failed to transcode.\n");
     goto end;
   }
 
-  // in_ctx->init_pkt = NULL;
-  // if ((ret = decode_packet(in_ctx,
-  //   out_ctx, out_stream, flt_ctx, sub_to_frame_ctx)) < 0)
-  // {
-  //   fprintf(stderr, "Failed to flush decoder.\n");
-  //   goto end;
-  // }
+  printf("flushing decoder\n");
+  in_ctx->init_pkt = NULL;
+  if ((ret = decode_packet(in_ctx,
+    out_ctx, out_stream, flt_ctx, sub_to_frame_ctx)) < 0)
+  {
+    fprintf(stderr, "Failed to flush decoder.\n");
+    goto end;
+  }
 
-  // flt_ctx->filtered_frame = NULL;
-  // if ((ret = encode_frame(in_ctx, out_ctx, flt_ctx)) < 0) {
-  //   fprintf(stderr, "Failed to flush encoder.\n");
-  //   goto end;
-  // }
+  printf("flushing filter.\n");
+  if ((ret = filter_encode_frame(in_ctx, out_ctx,
+    flt_ctx, flt_ctx->v_buffersrc_ctx, NULL)) < 0)
+  {
+    fprintf(stderr, "Failed to flush filter.\n");
+    goto end;
+  }
+
+  if ((ret = filter_encode_frame(in_ctx, out_ctx,
+    flt_ctx, flt_ctx->s_buffersrc_ctx, NULL)) < 0)
+  {
+    fprintf(stderr, "Failed to flush filter.\n");
+    goto end;
+  }
+
+  printf("flushing encoder\n");
+  flt_ctx->filtered_frame = NULL;
+  if ((ret = encode_frame(in_ctx, out_ctx, flt_ctx)) < 0) {
+    fprintf(stderr, "Failed to flush encoder.\n");
+    goto end;
+  }
+
+  printf("done flushing\n");
 
   if ((ret = av_write_trailer(out_ctx->fmt_ctx)) < 0) {
     fprintf(stderr, "Failed to write trailer to file.\n");
