@@ -659,7 +659,7 @@ int encode_frame(InputContext *in_ctx, OutputContext *out_ctx,
   return 0;
 }
 
-int filter_encode_frame(InputContext *in_ctx, OutputContext *out_ctx,
+int filter_frame(InputContext *in_ctx, OutputContext *out_ctx,
   FilterContext *flt_ctx, AVFilterContext *buffersrc_ctx, AVFrame *frame)
 {
   int ret = 0;
@@ -701,7 +701,7 @@ int decode_video_packet(InputContext *in_ctx, OutputContext *out_ctx,
   while ((ret =
     avcodec_receive_frame(in_ctx->v_dec_ctx, in_ctx->v_dec_frame)) >= 0)
   {
-    if ((ret = filter_encode_frame(in_ctx, out_ctx,
+    if ((ret = filter_frame(in_ctx, out_ctx,
       flt_ctx, flt_ctx->v_buffersrc_ctx, in_ctx->v_dec_frame)) < 0)
     {
       fprintf(stderr, "Failed to filter and encode frame.");
@@ -737,7 +737,7 @@ int decode_subtitle_packet(InputContext *in_ctx, OutputContext *out_ctx,
     return ret;
   }
 
-  if ((ret = filter_encode_frame(in_ctx, out_ctx,
+  if ((ret = filter_frame(in_ctx, out_ctx,
     flt_ctx, flt_ctx->s_buffersrc_ctx, sub_to_frame_ctx->subtitle_frame)) < 0)
   {
     fprintf(stderr, "Failed to filter and encode frame.\n");
@@ -900,14 +900,14 @@ int main(int argc, char **argv)
     goto end;
   }
 
-  if ((ret = filter_encode_frame(in_ctx, out_ctx,
+  if ((ret = filter_frame(in_ctx, out_ctx,
     flt_ctx, flt_ctx->v_buffersrc_ctx, NULL)) < 0)
   {
     fprintf(stderr, "Failed to flush filter.\n");
     goto end;
   }
 
-  if ((ret = filter_encode_frame(in_ctx, out_ctx,
+  if ((ret = filter_frame(in_ctx, out_ctx,
     flt_ctx, flt_ctx->s_buffersrc_ctx, NULL)) < 0)
   {
     fprintf(stderr, "Failed to flush filter.\n");
