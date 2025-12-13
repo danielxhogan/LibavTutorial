@@ -317,9 +317,9 @@ void close_output(OutputContext *out_ctx)
 }
 
 typedef struct FilterContext {
+  AVFilterContext *buffersrc_ctx;
   AVFilterContext *buffersink_ctx1;
   AVFilterContext *buffersink_ctx2;
-  AVFilterContext *buffersrc_ctx;
   AVFilterGraph *filter_graph;
   AVFrame *filtered_frame1;
   AVFrame *filtered_frame2;
@@ -602,7 +602,61 @@ int encode_frame(AVStream *in_stream, OutputContext *out_ctx,
   return 0;
 }
 
-int decode_filter_packet(InputContext *in_ctx, AVStream *in_stream,
+int filter_frame(InputContext *in_ctx, AVStream *in_stream,
+  OutputContext *out_ctx, FilterContext *flt_ctx, SwsOutputContext *sws_out_ctx)
+{
+  int ret = 0;
+
+  if ((ret = av_buffersrc_add_frame_flags(flt_ctx->buffersrc_ctx,
+    in_ctx->dec_frame, AV_BUFFERSRC_FLAG_KEEP_REF)) < 0)
+  {
+    fprintf(stderr, "Failed to add frame to buffer source.\n");
+    return ret;
+  }
+
+  while ((ret = av_buffersink_get_frame(flt_ctx->buffersink_ctx1,
+    flt_ctx->filtered_frame1)) >= 0)
+  {
+    if ((ret = encode_frame(in_stream, out_ctx, out_ctx->enc_ctx1,
+      flt_ctx->filtered_frame1, 0)) < 0)
+    {
+    fprintf(stderr, "Failed to encode frame.\n");
+    return ret;
+    }
+  }
+
+  if ((ret != AVERROR(EAGAIN)) && (ret != AVERROR_EOF)) {
+    fprintf(stderr, "Failed to get frame from first buffer sink.\n");
+    return ret;
+  }
+
+  while ((ret = av_buffersink_get_frame(flt_ctx->buffersink_ctx2,
+    flt_ctx->filtered_frame2)) >= 0)
+  {
+    if ((ret =
+      sws_output_context_scale(sws_out_ctx, flt_ctx->filtered_frame2)) < 0)
+    {
+      fprintf(stderr, "Failed to scale frame.\n");
+      return ret;
+    }
+
+    if ((ret = encode_frame(in_stream, out_ctx, out_ctx->enc_ctx2,
+      sws_out_ctx->scaled_frame, 1)) < 0)
+    {
+    fprintf(stderr, "Failed to encode frame.\n");
+    return ret;
+    }
+  }
+
+  if ((ret != AVERROR(EAGAIN)) && (ret != AVERROR_EOF)) {
+    fprintf(stderr, "Failed to get frame from second buffer sink.\n");
+    return ret;
+  }
+
+  return 0;
+}
+
+int decode_packet(InputContext *in_ctx, AVStream *in_stream,
   OutputContext *out_ctx, FilterContext *flt_ctx, SwsOutputContext *sws_out_ctx)
 {
   int ret = 0;
@@ -614,49 +668,8 @@ int decode_filter_packet(InputContext *in_ctx, AVStream *in_stream,
 
   while ((ret = avcodec_receive_frame(in_ctx->dec_ctx, in_ctx->dec_frame)) >= 0)
   {
-    if ((ret = av_buffersrc_add_frame_flags(flt_ctx->buffersrc_ctx,
-      in_ctx->dec_frame, AV_BUFFERSRC_FLAG_KEEP_REF)) < 0)
-    {
-      fprintf(stderr, "Failed to add frame to buffer source.\n");
-      return ret;
-    }
-
-    while ((ret = av_buffersink_get_frame(flt_ctx->buffersink_ctx1,
-      flt_ctx->filtered_frame1)) >= 0)
-    {
-      if ((ret = encode_frame(in_stream, out_ctx, out_ctx->enc_ctx1,
-        flt_ctx->filtered_frame1, 0)) < 0)
-      {
-      fprintf(stderr, "Failed to encode frame.\n");
-      return ret;
-      }
-    }
-
-    if ((ret != AVERROR(EAGAIN)) && (ret != AVERROR_EOF)) {
-      fprintf(stderr, "Failed to get frame from first buffer sink.\n");
-      return ret;
-    }
-
-    while ((ret = av_buffersink_get_frame(flt_ctx->buffersink_ctx2,
-      flt_ctx->filtered_frame2)) >= 0)
-    {
-      if ((ret =
-        sws_output_context_scale(sws_out_ctx, flt_ctx->filtered_frame2)) < 0)
-      {
-        fprintf(stderr, "Failed to scale frame.\n");
-        return ret;
-      }
-
-      if ((ret = encode_frame(in_stream, out_ctx, out_ctx->enc_ctx2,
-        sws_out_ctx->scaled_frame, 1)) < 0)
-      {
-      fprintf(stderr, "Failed to encode frame.\n");
-      return ret;
-      }
-    }
-
-    if ((ret != AVERROR(EAGAIN)) && (ret != AVERROR_EOF)) {
-      fprintf(stderr, "Failed to get frame from second buffer sink.\n");
+    if ((ret = filter_frame(in_ctx, in_stream, out_ctx, flt_ctx, sws_out_ctx)) < 0) {
+      fprintf(stderr, "Failed to filter frame.\n");
       return ret;
     }
   }
@@ -681,7 +694,7 @@ int transcode(InputContext *in_ctx, AVStream *in_stream,
       continue;
     }
 
-    if ((ret = decode_filter_packet(in_ctx, in_stream, out_ctx, flt_ctx, sws_out_ctx)) < 0) {
+    if ((ret = decode_packet(in_ctx, in_stream, out_ctx, flt_ctx, sws_out_ctx)) < 0) {
       fprintf(stderr, "Failed to decode and filter packet.\n");
       return ret;
     }
@@ -776,10 +789,18 @@ int main(int argc, char **argv)
   }
 
   in_ctx->init_pkt = NULL;
-  if ((ret = decode_filter_packet(in_ctx, in_stream,
+  if ((ret = decode_packet(in_ctx, in_stream,
     out_ctx, flt_ctx, sws_out_ctx)) < 0)
   {
     fprintf(stderr, "Failed to flush decoder.\n");
+    goto end;
+  }
+
+  in_ctx->dec_frame = NULL;
+  if ((ret = filter_frame(in_ctx, in_stream,
+    out_ctx, flt_ctx, sws_out_ctx)) < 0)
+  {
+    fprintf(stderr, "Failed to flush filter.\n");
     goto end;
   }
 
