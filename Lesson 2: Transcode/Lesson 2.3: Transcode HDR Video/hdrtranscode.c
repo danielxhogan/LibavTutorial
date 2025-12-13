@@ -228,7 +228,9 @@ int main(int argc, char **argv)
   if (argc != 4 && argc != 5) {
     printf("\nUsage: %s <input file> <output file> <encoder> [<encoder-params>]\n\n\t"
       "This example will take in a file with a video stream, transcode the video,\n\t"
-      "and save it to <output file>. Optionally, you can pass in a colon\n\t"
+      "and save it to <output file>. If the video has HDR metadata and/or\n\t"
+      "Dolbyvision metadata, it will be copied over to the output file.\n\t"
+      "Optionally, you can pass in a colon\n\t"
       "seperated string with parameters that will be passed to the encoder.\n\t"
       "encoder-params is supported for libx264, libx265, and libsvtav1.\n\n",
       argv[0]);
