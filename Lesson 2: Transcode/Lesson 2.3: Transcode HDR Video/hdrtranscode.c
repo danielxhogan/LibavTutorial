@@ -8,16 +8,71 @@
 
 typedef struct HdrMetadataContext {
   AVMasteringDisplayMetadata *mdm;
+  char *mdm_str;
   AVContentLightMetadata *cll;
+  char *cll_str;
   AVDOVIMetadata *dovi;
 } HdrMetadataContext;
 
-HdrMetadataContext *hdr_metadata_alloc()
+static int max_len_mdm_str()
+{
+  char *max_mdm_str = "G(2147483647,2147483647)B(2147483647,2147483647)R(2147483647,2147483647)WP(2147483647,2147483647)L(2147483647,2147483647)";
+  char *end;
+  int len_max_mdm_str;
+
+  for (end = max_mdm_str; *end; end++);
+  len_max_mdm_str = end - max_mdm_str;
+
+  return len_max_mdm_str;
+}
+
+#define MDM_STR_MAX_LEN max_len_mdm_str()
+
+static int max_len_cll_str()
+{
+  char *max_cll_str = "2147483647,2147483647";
+  char *end;
+  int len_max_cll_str;
+
+  for (end = max_cll_str; *end; end++);
+  len_max_cll_str = end - max_cll_str;
+
+  return len_max_cll_str;
+}
+
+#define CLL_STR_MAX_LEN max_len_cll_str()
+
+static int len_hdr_params_str(int dovi)
+{
+  char *params_base, *end;
+  int len_params_base, len_params;
+
+  if (dovi) {
+    params_base =
+      "master-display=:max-cll=:vbv-maxrate=100000:vbv-bufsize=200000:";
+  } else {
+    params_base = "master-display=:max-cll=:";
+  }
+
+  for (end = params_base; *end; end++);
+  len_params_base = end - params_base;
+
+  len_params = len_params_base + MDM_STR_MAX_LEN + CLL_STR_MAX_LEN;
+
+  return len_params;
+}
+
+#define DOVI_PARAMS_STR_LEN len_hdr_params_str(1)
+#define HDR_PARAMS_STR_LEN len_hdr_params_str(0)
+
+HdrMetadataContext *hdr_ctx_alloc()
 {
   HdrMetadataContext *hdr_ctx = malloc(sizeof(HdrMetadataContext));
   if (!hdr_ctx) return NULL;
   hdr_ctx->mdm = NULL;
+  hdr_ctx->mdm_str = NULL;
   hdr_ctx->cll = NULL;
+  hdr_ctx->cll_str = NULL;
   hdr_ctx->dovi = NULL;
   return hdr_ctx;
 }
@@ -111,7 +166,30 @@ int extract_hdr_metadata(HdrMetadataContext *hdr_ctx, const char *filename)
 
         if (frame_sd) {
           hdr_ctx->mdm = av_mastering_display_metadata_alloc();
-          memcpy(hdr_ctx->mdm, frame_sd->data, sizeof(AVMasteringDisplayMetadata));
+          memcpy(hdr_ctx->mdm, frame_sd->data,
+            sizeof(AVMasteringDisplayMetadata));
+
+          if (!(hdr_ctx->mdm_str =
+            calloc(MDM_STR_MAX_LEN + 1, sizeof(char))))
+          {
+            fprintf(stderr, "Failed to allocate hdr_ctx->mdm_str\n");
+            ret = AVERROR(ENOMEM);
+            goto end;
+          }
+
+          snprintf(hdr_ctx->mdm_str,
+            MDM_STR_MAX_LEN + 1,
+            "G(%d,%d)B(%d,%d)R(%d,%d)WP(%d,%d)L(%d,%d)",
+            hdr_ctx->mdm->display_primaries[1][0].num,
+            hdr_ctx->mdm->display_primaries[1][1].num,
+            hdr_ctx->mdm->display_primaries[2][0].num,
+            hdr_ctx->mdm->display_primaries[2][1].num,
+            hdr_ctx->mdm->display_primaries[0][0].num,
+            hdr_ctx->mdm->display_primaries[0][1].num,
+            hdr_ctx->mdm->white_point[0].num,
+            hdr_ctx->mdm->white_point[1].num,
+            hdr_ctx->mdm->max_luminance.num,
+            hdr_ctx->mdm->min_luminance.num);
         }
       }
 
@@ -122,6 +200,17 @@ int extract_hdr_metadata(HdrMetadataContext *hdr_ctx, const char *filename)
         if (frame_sd) {
           hdr_ctx->cll = av_content_light_metadata_alloc(NULL);
           memcpy(hdr_ctx->cll, frame_sd->data, sizeof(AVContentLightMetadata));
+
+          if (!(hdr_ctx->cll_str =
+            calloc(CLL_STR_MAX_LEN + 1, sizeof(char))))
+          {
+            fprintf(stderr, "Failed to allocate hdr_ctx->cll_str\n");
+            ret = AVERROR(ENOMEM);
+            goto end;
+          }
+
+          snprintf(hdr_ctx->cll_str, CLL_STR_MAX_LEN + 1, "%d,%d",
+            hdr_ctx->cll->MaxCLL, hdr_ctx->cll->MaxFALL);
         }
       }
 
@@ -144,7 +233,9 @@ int extract_hdr_metadata(HdrMetadataContext *hdr_ctx, const char *filename)
       goto end;
     }
 
-    if (hdr_ctx->mdm && hdr_ctx->cll && hdr_ctx->dovi) break;
+    if (hdr_ctx->mdm && hdr_ctx->cll && hdr_ctx->dovi) {
+      break;
+    }
   }
 
   if ((ret < 0 && ret != AVERROR(EAGAIN)) && (ret != AVERROR_EOF)) {
@@ -162,7 +253,8 @@ end:
   return ret;
 }
 
-int inject_hdr_metadta(HdrMetadataContext *hdr_ctx, AVCodecContext *enc_ctx)
+int inject_hdr_metadta(HdrMetadataContext *hdr_ctx, AVCodecContext *enc_ctx,
+  char **params_str)
 {
   int ret;
 
@@ -172,7 +264,8 @@ int inject_hdr_metadta(HdrMetadataContext *hdr_ctx, AVCodecContext *enc_ctx)
       &enc_ctx->nb_coded_side_data, AV_PKT_DATA_MASTERING_DISPLAY_METADATA,
       (uint8_t *) hdr_ctx->mdm, sizeof(AVMasteringDisplayMetadata), 0))
     {
-      fprintf(stderr, "Failed to add mastering display metadata to encoder context.\n");
+      fprintf(stderr,
+        "Failed to add mastering display metadata to encoder context.\n");
       return AVERROR_UNKNOWN;
     }
 
@@ -180,18 +273,60 @@ int inject_hdr_metadta(HdrMetadataContext *hdr_ctx, AVCodecContext *enc_ctx)
       &enc_ctx->nb_coded_side_data, AV_PKT_DATA_CONTENT_LIGHT_LEVEL,
       (uint8_t *) hdr_ctx->cll, sizeof(AVContentLightMetadata), 0))
     {
-      fprintf(stderr, "Failed to add content light level metadata to encoder context.\n");
+      fprintf(stderr,
+        "Failed to add content light level metadata to encoder context.\n");
       return AVERROR_UNKNOWN;
     }
 
+    if (*params_str) {
+      free(*params_str);
+    }
+
     if (hdr_ctx->dovi) {
+      if (!av_packet_side_data_add(&enc_ctx->coded_side_data,
+        &enc_ctx->nb_coded_side_data, (enum AVPacketSideDataType) AV_FRAME_DATA_DOVI_METADATA,
+        (uint8_t *) hdr_ctx->dovi, sizeof(AVDOVIMetadata), 0))
+      {
+        fprintf(stderr,
+          "Failed to add content light level metadata to encoder context.\n");
+        return AVERROR_UNKNOWN;
+      }
+
       if ((ret = av_opt_set(enc_ctx->priv_data, "dolbyvision", "true", 0)) < 0) {
         fprintf(stderr, "Failed to set dolbyvision opt.\n");
         return ret;
       }
+
+      if (!(*params_str = calloc(DOVI_PARAMS_STR_LEN + 1, sizeof(char))))
+      {
+        fprintf(stderr, "Failed to allocate params_str\n");
+        return AVERROR(ENOMEM);
+      }
+
+      snprintf(*params_str, DOVI_PARAMS_STR_LEN,
+        "master-display=%s:max-cll=%s:vbv-maxrate=100000:vbv-bufsize=200000:",
+        hdr_ctx->mdm_str, hdr_ctx->cll_str);
+    }
+    else {
+      if (!(*params_str = calloc(HDR_PARAMS_STR_LEN + 1, sizeof(char))))
+      {
+        fprintf(stderr, "Failed to allocate params_str\n");
+        return AVERROR(ENOMEM);
+      }
+
+      snprintf(*params_str, HDR_PARAMS_STR_LEN,
+        "master-display=%s:max-cll=%s:", hdr_ctx->mdm_str, hdr_ctx->cll_str);
     }
   }
+
   return 0;
+}
+
+void hdr_ctx_free(HdrMetadataContext *hdr_ctx)
+{
+  free(hdr_ctx->mdm_str);
+  free(hdr_ctx->cll_str);
+  free(hdr_ctx);
 }
 
 typedef struct InputContext {
@@ -312,25 +447,46 @@ int initialize_encoder_params(const char *encoder, char **enc_params_opt)
   return 0;
 }
 
+static int get_len_params_str(char *hdr_params_str, char *additional_params_str)
+{
+  char *end;
+  int len_hdr_params_str = 0, len_additional_params_str = 0;
+
+  if (additional_params_str) {
+    for (end = additional_params_str; *end; end++);
+    len_additional_params_str = end - additional_params_str;
+  }
+
+  if (hdr_params_str) {
+    for (end = hdr_params_str; *end; end++);
+    len_hdr_params_str = end - hdr_params_str;
+  }
+
+  return len_hdr_params_str + len_additional_params_str;
+}
+
 typedef struct OutputContext {
   AVFormatContext *fmt_ctx;
   AVCodecContext *enc_ctx;
   AVPacket *enc_pkt;
 } OutputContext;
 
-OutputContext *open_output(InputContext *in_ctx, HdrMetadataContext *hdr_ctx,
-  const char *codec, char *enc_params, char *enc_params_opt,
-  const char *out_filename)
+OutputContext *open_output(InputContext *in_ctx,
+  const char *codec, char *user_enc_params, char *enc_params_opt,
+  char *in_filename, const char *out_filename)
 {
   int ret = 0;
   OutputContext *out_ctx = NULL;
   AVStream *in_stream, *out_stream;
   const AVCodec *enc;
+  HdrMetadataContext *hdr_ctx = NULL;
+  char *params_str = NULL, *hdr_params_str = NULL;
+  int len_params_str;
 
   if (!(out_ctx = malloc(sizeof(OutputContext)))) {
     fprintf(stderr, "Failed to allocate OutputContext.\n");
     ret = AVERROR(ENOMEM);
-    return NULL;
+    goto end;
   }
 
   out_ctx->fmt_ctx = NULL;
@@ -340,13 +496,13 @@ OutputContext *open_output(InputContext *in_ctx, HdrMetadataContext *hdr_ctx,
   if (!(enc = avcodec_find_encoder_by_name(codec))) {
     fprintf(stderr, "Failed to find encoder.\n");
     ret = AVERROR(EINVAL);
-    return NULL;
+    goto end;
   }
 
   if (!(out_ctx->enc_ctx = avcodec_alloc_context3(enc))) {
     fprintf(stderr, "Failed to allocate encoder.\n");
     ret = AVERROR(EINVAL);
-    return NULL;
+    goto end;
   }
 
   in_stream = in_ctx->fmt_ctx->streams[in_ctx->stream_idx];
@@ -366,23 +522,47 @@ OutputContext *open_output(InputContext *in_ctx, HdrMetadataContext *hdr_ctx,
 
   out_ctx->enc_ctx->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
 
-  if (enc_params && enc_params_opt) {
-    if ((ret = av_opt_set(out_ctx->enc_ctx->priv_data,
-      enc_params_opt, enc_params, 0)) < 0)
-    {
-      fprintf(stderr, "Failed to set '%s'.\n", enc_params_opt);
-      return NULL;
-    }
+  if (!(hdr_ctx = hdr_ctx_alloc())) {
+    fprintf(stderr, "Failed to allocate hdr metada.\n");
+    ret = -ENOMEM;
+    goto end;
   }
 
-  if ((ret = inject_hdr_metadta(hdr_ctx, out_ctx->enc_ctx)) < 0) {
+  if ((ret = extract_hdr_metadata(hdr_ctx, in_filename)) < 0) {
+    fprintf(stderr, "Failed to extract hdr metadata.\n");
+    goto end;
+  }
+
+  if ((ret = inject_hdr_metadta(hdr_ctx, out_ctx->enc_ctx, &hdr_params_str)) < 0) {
     fprintf(stderr, "Failed to inject hdr metadata.\n");
-    return NULL;
+    goto end;
+  }
+
+  len_params_str = get_len_params_str(hdr_params_str, user_enc_params);
+
+  if (!(params_str = calloc(len_params_str + 1, sizeof(char))))
+  {
+    fprintf(stderr, "Failed to allocate params_str\n");
+    ret = AVERROR(ENOMEM);
+    goto end;
+  }
+
+  if (hdr_params_str) { strcat(params_str, hdr_params_str); }
+  if (user_enc_params) { strcat(params_str, user_enc_params); }
+
+  printf("params_str: %s\n", params_str);
+  printf("enc_params_opt: %s\n", enc_params_opt);
+
+  if ((ret = av_opt_set(out_ctx->enc_ctx->priv_data, enc_params_opt,
+    params_str, 0)) < 0)
+  {
+    fprintf(stderr, "Failed to set x265-params.\n");
+    goto end;
   }
 
   if ((ret = avcodec_open2(out_ctx->enc_ctx, enc, NULL)) < 0) {
     fprintf(stderr, "Failed to open encoder.\n");
-    return NULL;
+    goto end;
   }
 
   if ((ret =
@@ -390,7 +570,7 @@ OutputContext *open_output(InputContext *in_ctx, HdrMetadataContext *hdr_ctx,
   {
     fprintf(stderr,
       "Failed to allocate output format context.\n");
-    return NULL;
+    goto end;
   }
 
   if ((ret = av_dict_copy(&out_ctx->fmt_ctx->metadata, in_ctx->fmt_ctx->metadata,
@@ -398,13 +578,13 @@ OutputContext *open_output(InputContext *in_ctx, HdrMetadataContext *hdr_ctx,
   {
     fprintf(stderr,
       "Failed to copy input metadata to output.\n");
-    return NULL;
+    goto end;
   }
 
   if (!(out_stream = avformat_new_stream(out_ctx->fmt_ctx, NULL))) {
     fprintf(stderr,
       "Failed to allocate new output stream.\n");
-    return NULL;
+    goto end;
   }
 
   if ((ret = av_dict_copy(&out_stream->metadata,
@@ -412,7 +592,7 @@ OutputContext *open_output(InputContext *in_ctx, HdrMetadataContext *hdr_ctx,
   {
     fprintf(stderr,
       "Failed to copy metadata from input stream to output stream.\n");
-    return NULL;
+    goto end;
   }
 
   if ((ret =
@@ -420,7 +600,7 @@ OutputContext *open_output(InputContext *in_ctx, HdrMetadataContext *hdr_ctx,
   {
     fprintf(stderr,
       "Failed to copy parameters from encoder to output stream.\n");
-    return NULL;
+    goto end;
   }
 
   out_stream->time_base = out_ctx->enc_ctx->time_base;
@@ -430,7 +610,7 @@ OutputContext *open_output(InputContext *in_ctx, HdrMetadataContext *hdr_ctx,
   if (!(out_ctx->enc_pkt = av_packet_alloc())) {
     fprintf(stderr, "Failed to allocate AVPacket.\n");
     ret = AVERROR(ENOMEM);
-    return NULL;
+    goto end;
   }
 
   if (!(out_ctx->fmt_ctx->oformat->flags & AVFMT_NOFILE)) {
@@ -438,15 +618,21 @@ OutputContext *open_output(InputContext *in_ctx, HdrMetadataContext *hdr_ctx,
       avio_open(&out_ctx->fmt_ctx->pb, out_filename, AVIO_FLAG_WRITE)) < 0)
     {
       fprintf(stderr, "Failed to create output file.\n");
-      return NULL;
+      goto end;
     }
   }
 
   if ((ret = avformat_write_header(out_ctx->fmt_ctx, NULL)) < 0) {
     fprintf(stderr, "Failed to write header to output.\n");
-    return NULL;
+    goto end;
   }
 
+end:
+  hdr_ctx_free(hdr_ctx);
+  free(hdr_params_str);
+  free(params_str);
+
+  if (ret < 0) return NULL;
   return out_ctx;
 }
 
@@ -553,7 +739,6 @@ int main(int argc, char **argv)
     *enc_params = NULL, *enc_params_opt = NULL;
   InputContext *in_ctx = NULL;
   OutputContext *out_ctx = NULL;
-  HdrMetadataContext *hdr_ctx = NULL;
   AVStream *in_stream = NULL, *out_stream = NULL;
 
   if (argc != 4 && argc != 5) {
@@ -571,25 +756,11 @@ int main(int argc, char **argv)
   in_filename = argv[1];
   out_filename = argv[2];
   encoder = argv[3];
+  enc_params = argv[4];
 
-  if (argc == 5) {
-    enc_params = argv[4];
-
-    if ((ret = initialize_encoder_params(encoder, &enc_params_opt)) < 0) {
-      fprintf(stderr, "Failed to initialize encoder option params.\n");
-      return -1;
-    }
-  }
-
-  if (!(hdr_ctx = hdr_metadata_alloc())) {
-    fprintf(stderr, "Failed to allocate HdrMetadataContext.\n");
-    ret = ENOMEM;
-    goto end;
-  }
-
-  if ((ret = extract_hdr_metadata(hdr_ctx, in_filename)) < 0) {
-    fprintf(stderr, "Failed to get hdr metatdata from input file.\n");
-    goto end;
+  if ((ret = initialize_encoder_params(encoder, &enc_params_opt)) < 0) {
+    fprintf(stderr, "Failed to initialize encoder option params.\n");
+    return -1;
   }
 
   if (!(in_ctx = open_input(in_filename, 0))) {
@@ -600,7 +771,7 @@ int main(int argc, char **argv)
   in_stream = in_ctx->fmt_ctx->streams[in_ctx->stream_idx];
 
   if (!(out_ctx =
-    open_output(in_ctx, hdr_ctx, encoder, enc_params, enc_params_opt, out_filename)))
+    open_output(in_ctx, encoder, enc_params, enc_params_opt, in_filename, out_filename)))
   {
     fprintf(stderr, "Failed to open output file: '%s'.\n", out_filename);
     goto end;
@@ -633,7 +804,6 @@ int main(int argc, char **argv)
 end:
   close_input(in_ctx);
   close_output(out_ctx);
-  free(hdr_ctx);
 
   if (ret < 0 && ret != AVERROR(EAGAIN) && ret != AVERROR_EOF) {
     fprintf(stderr, "\nLibav Error: %s\n", av_err2str(ret));
