@@ -215,7 +215,6 @@ OutputContext *open_output(InputContext *in_ctx,
   int width, int height, enum AVPixelFormat pix_fmt,
   const char *out_filename)
 {
-  printf("width: %d\n", width);
   int ret = 0;
   OutputContext *out_ctx = NULL;
   AVStream *in_stream, *out_stream;
