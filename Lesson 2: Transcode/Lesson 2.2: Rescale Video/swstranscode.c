@@ -462,9 +462,14 @@ int main(int argc, char **argv)
   AVStream *in_stream, *out_stream;
 
   if (argc != 7 && argc != 8) {
-    printf("\nUsage: %s <input file> <output file> <encoder> [<encoder-params>]\n\n\t"
-      "This example will take in a file with a video stream,\n\t"
-      "transcode the video, and save it to <output file>.\n\t"
+    printf("\nUsage: %s <input file> <output file> <width> <height> <pixel_format> <encoder> [<encoder-params>]\n\n\t"
+      "This example will take in a file with a video stream.\n\t"
+      "Each frame will be read from the input file, decoded, and passed\n\t"
+      "through the rescaler. The rescaler will rescale the image to the\n\t"
+      "width and heigth specified on the command line and reformat the\n\t"
+      "pixel format to the pixel_format specified on the command line.\n\t"
+      "the new frame will then be sent to the encoder and the encoded\n\t"
+      "frame will be written to the output file.\n\t"
       "Optionally, you can pass in a colon seperated string\n\t"
       "with parameters that will be passed to the encoder.\n\t"
       "encoder-params is supported for libx264, libx265, and libsvtav1.\n\n",
