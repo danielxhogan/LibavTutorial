@@ -550,13 +550,10 @@ OutputContext *open_output(InputContext *in_ctx,
   if (hdr_params_str) { strcat(params_str, hdr_params_str); }
   if (user_enc_params) { strcat(params_str, user_enc_params); }
 
-  printf("params_str: %s\n", params_str);
-  printf("enc_params_opt: %s\n", enc_params_opt);
-
   if ((ret = av_opt_set(out_ctx->enc_ctx->priv_data, enc_params_opt,
     params_str, 0)) < 0)
   {
-    fprintf(stderr, "Failed to set x265-params.\n");
+    fprintf(stderr, "Failed to set encoder params.\n");
     goto end;
   }
 
@@ -578,6 +575,11 @@ OutputContext *open_output(InputContext *in_ctx,
   {
     fprintf(stderr,
       "Failed to copy input metadata to output.\n");
+    goto end;
+  }
+
+  if ((ret = av_opt_set(out_ctx->fmt_ctx, "strict", "unofficial", 0)) < 0) {
+    fprintf(stderr, "Failed to set -strict unofficial.\n");
     goto end;
   }
 
