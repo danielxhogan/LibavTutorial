@@ -3,7 +3,7 @@ meson_setup.sh
 build
 
 outputs
-videos
+/*/videos
 video_renditions
 /*/*/videos/ffmpeg/
 
