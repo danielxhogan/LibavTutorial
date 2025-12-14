@@ -1,69 +1,90 @@
-# whiplash
+# # whiplash
 # cd build && ninja && ./vtranscode "../videos/inputs/whiplash.mkv" "../videos/outputs/whiplash_svtav1.mp4" "libsvtav1"
 # cd ..
-# cd build && ninja && ./vtranscode "../videos/inputs/whiplash.mkv" "../videos/outputs/whiplash_svtav1_params.mp4" "libsvtav1" "film-grain=20:crf=15:tune=0:preset=8:keyint=48:tile-rows=2:tile-columns=2:fast-decode=2"
+# cd build && ninja && ./vtranscode "../videos/inputs/whiplash.mkv" "../videos/outputs/whiplash_svtav1_params.mp4" "libsvtav1" "film-grain=20:crf=15:tune=0:preset=10:keyint=48:tile-rows=2:tile-columns=2:fast-decode=2"
 # cd ..
-# cd build && ninja && ./vtranscode "../videos/inputs/whiplash.mkv" "../videos/outputs/whiplash_svtav1_params.mkv" "libsvtav1" "film-grain=20:crf=15:tune=0:preset=8:keyint=48:tile-rows=2:tile-columns=2:fast-decode=2"
+# cd build && ninja && ./vtranscode "../videos/inputs/whiplash.mkv" "../videos/outputs/whiplash_svtav1_params.mkv" "libsvtav1" "film-grain=20:crf=15:tune=0:preset=10:keyint=48:tile-rows=2:tile-columns=2:fast-decode=2"
 # cd ..
 
 # cd build && ninja && ./vtranscode "../videos/inputs/whiplash.mkv" "../videos/outputs/whiplash_x264.mp4" "libx264"
 # cd ..
-# cd build && ninja && ./vtranscode "../videos/inputs/whiplash.mkv" "../videos/outputs/whiplash_x264_params.mp4" "libx264" "crf=45"
+# cd build && ninja && ./vtranscode "../videos/inputs/whiplash.mkv" "../videos/outputs/whiplash_x264_params.mp4" "libx264" "crf=25"
 # cd ..
-# cd build && ninja && ./vtranscode "../videos/inputs/whiplash.mkv" "../videos/outputs/whiplash_x264_params.mkv" "libx264" "crf=45"
+# cd build && ninja && ./vtranscode "../videos/inputs/whiplash.mkv" "../videos/outputs/whiplash_x264_params.mkv" "libx264" "crf=25"
 # cd ..
 
 # cd build && ninja && ./vtranscode "../videos/inputs/whiplash.mkv" "../videos/outputs/whiplash_x265.mp4" "libx265"
 # cd ..
-# cd build && ninja && ./vtranscode "../videos/inputs/whiplash.mkv" "../videos/outputs/whiplash_x265_params.mp4" "libx265" "crf=20:tune=grain"
+# cd build && ninja && ./vtranscode "../videos/inputs/whiplash.mkv" "../videos/outputs/whiplash_x265_params.mp4" "libx265" "crf=20"
 # cd ..
-# cd build && ninja && ./vtranscode "../videos/inputs/whiplash.mkv" "../videos/outputs/whiplash_x265_params.mkv" "libx265" "crf=20:tune=grain"
+# cd build && ninja && ./vtranscode "../videos/inputs/whiplash.mkv" "../videos/outputs/whiplash_x265_params.mkv" "libx265" "crf=20"
 # cd ..
 
-# ll
+# # heretic
+# cd build && ninja && ./vtranscode "../videos/inputs/heretic.mkv" "../videos/outputs/heretic_svtav1.mp4" "libsvtav1"
+# cd ..
+# cd build && ninja && ./vtranscode "../videos/inputs/heretic.mkv" "../videos/outputs/heretic_svtav1_params.mp4" "libsvtav1" "film-grain=20:crf=15:tune=0:preset=10:keyint=48:tile-rows=2:tile-columns=2:fast-decode=2"
+# cd ..
+# cd build && ninja && ./vtranscode "../videos/inputs/heretic.mkv" "../videos/outputs/heretic_svtav1_params.mkv" "libsvtav1" "film-grain=20:crf=15:tune=0:preset=10:keyint=48:tile-rows=2:tile-columns=2:fast-decode=2"
+# cd ..
+
+# cd build && ninja && ./vtranscode "../videos/inputs/heretic.mkv" "../videos/outputs/heretic_x264.mp4" "libx264"
+# cd ..
+# cd build && ninja && ./vtranscode "../videos/inputs/heretic.mkv" "../videos/outputs/heretic_x264_params.mp4" "libx264" "crf=25"
+# cd ..
+# cd build && ninja && ./vtranscode "../videos/inputs/heretic.mkv" "../videos/outputs/heretic_x264_params.mkv" "libx264" "crf=25"
+# cd ..
+
+# cd build && ninja && ./vtranscode "../videos/inputs/heretic.mkv" "../videos/outputs/heretic_x265.mp4" "libx265"
+# cd ..
+# cd build && ninja && ./vtranscode "../videos/inputs/heretic.mkv" "../videos/outputs/heretic_x265_params.mp4" "libx265" "crf=20"
+# cd ..
+# cd build && ninja && ./vtranscode "../videos/inputs/heretic.mkv" "../videos/outputs/heretic_x265_params.mkv" "libx265" "crf=20"
+# cd ..
+
+# # noes
+# cd build && ninja && ./vtranscode "../videos/inputs/noes.mkv" "../videos/outputs/noes_svtav1.mp4" "libsvtav1"
+# cd ..
+# cd build && ninja && ./vtranscode "../videos/inputs/noes.mkv" "../videos/outputs/noes_svtav1_params.mp4" "libsvtav1" "film-grain=20:crf=15:tune=0:preset=10:keyint=48:tile-rows=2:tile-columns=2:fast-decode=2"
+# cd ..
+# cd build && ninja && ./vtranscode "../videos/inputs/noes.mkv" "../videos/outputs/noes_svtav1_params.mkv" "libsvtav1" "film-grain=20:crf=15:tune=0:preset=10:keyint=48:tile-rows=2:tile-columns=2:fast-decode=2"
+# cd ..
+
+# cd build && ninja && ./vtranscode "../videos/inputs/noes.mkv" "../videos/outputs/noes_x264.mp4" "libx264"
+# cd ..
+# cd build && ninja && ./vtranscode "../videos/inputs/noes.mkv" "../videos/outputs/noes_x264_params.mp4" "libx264" "crf=25"
+# cd ..
+# cd build && ninja && ./vtranscode "../videos/inputs/noes.mkv" "../videos/outputs/noes_x264_params.mkv" "libx264" "crf=25"
+# cd ..
+
+# cd build && ninja && ./vtranscode "../videos/inputs/noes.mkv" "../videos/outputs/noes_x265.mp4" "libx265"
+# cd ..
+# cd build && ninja && ./vtranscode "../videos/inputs/noes.mkv" "../videos/outputs/noes_x265_params.mp4" "libx265" "crf=20"
+# cd ..
+# cd build && ninja && ./vtranscode "../videos/inputs/noes.mkv" "../videos/outputs/noes_x265_params.mkv" "libx265" "crf=20"
+# cd ..
+
+# # ll
 # cd build && ninja && ./vtranscode "../videos/inputs/ll.mkv" "../videos/outputs/ll_svtav1.mp4" "libsvtav1"
 # cd ..
-# cd build && ninja && ./vtranscode "../videos/inputs/ll.mkv" "../videos/outputs/ll_svtav1_params.mp4" "libsvtav1" "film-grain=20:crf=15:tune=0:preset=8:keyint=48:tile-rows=2:tile-columns=2:fast-decode=2"
+# cd build && ninja && ./vtranscode "../videos/inputs/ll.mkv" "../videos/outputs/ll_svtav1_params.mp4" "libsvtav1" "film-grain=20:crf=15:tune=0:preset=10:keyint=48:tile-rows=2:tile-columns=2:fast-decode=2"
 # cd ..
-# cd build && ninja && ./vtranscode "../videos/inputs/ll.mkv" "../videos/outputs/ll_svtav1_params.mkv" "libsvtav1" "film-grain=20:crf=15:tune=0:preset=8:keyint=48:tile-rows=2:tile-columns=2:fast-decode=2"
+# cd build && ninja && ./vtranscode "../videos/inputs/ll.mkv" "../videos/outputs/ll_svtav1_params.mkv" "libsvtav1" "film-grain=20:crf=15:tune=0:preset=10:keyint=48:tile-rows=2:tile-columns=2:fast-decode=2"
 # cd ..
 
 # cd build && ninja && ./vtranscode "../videos/inputs/ll.mkv" "../videos/outputs/ll_x264.mp4" "libx264"
 # cd ..
-# cd build && ninja && ./vtranscode "../videos/inputs/ll.mkv" "../videos/outputs/ll_x264_params.mp4" "libx264" "crf=45"
+# cd build && ninja && ./vtranscode "../videos/inputs/ll.mkv" "../videos/outputs/ll_x264_params.mp4" "libx264" "crf=25"
 # cd ..
-# cd build && ninja && ./vtranscode "../videos/inputs/ll.mkv" "../videos/outputs/ll_x264_params.mkv" "libx264" "crf=45"
+# cd build && ninja && ./vtranscode "../videos/inputs/ll.mkv" "../videos/outputs/ll_x264_params.mkv" "libx264" "crf=25"
 # cd ..
 
 # cd build && ninja && ./vtranscode "../videos/inputs/ll.mkv" "../videos/outputs/ll_x265.mp4" "libx265"
 # cd ..
-# cd build && ninja && ./vtranscode "../videos/inputs/ll.mkv" "../videos/outputs/ll_x265_params.mp4" "libx265" "crf=20:tune=grain"
+# cd build && ninja && ./vtranscode "../videos/inputs/ll.mkv" "../videos/outputs/ll_x265_params.mp4" "libx265" "crf=20"
 # cd ..
-# cd build && ninja && ./vtranscode "../videos/inputs/ll.mkv" "../videos/outputs/ll_x265_params.mkv" "libx265" "crf=20:tune=grain"
+# cd build && ninja && ./vtranscode "../videos/inputs/ll.mkv" "../videos/outputs/ll_x265_params.mkv" "libx265" "crf=20"
 # cd ..
-
-# 4k_ll
-# cd build && ninja && ./vtranscode "../videos/inputs/4k_ll.mkv" "../videos/outputs/4k_ll_svtav1.mp4" "libsvtav1"
-# cd ..
-# cd build && ninja && ./vtranscode "../videos/inputs/4k_ll.mkv" "../videos/outputs/4k_ll_svtav1_params.mp4" "libsvtav1" "film-grain=20:crf=15:tune=0:preset=8:keyint=48:tile-rows=2:tile-columns=2:fast-decode=2"
-# cd ..
-# cd build && ninja && ./vtranscode "../videos/inputs/4k_ll.mkv" "../videos/outputs/4k_ll_svtav1_params.mkv" "libsvtav1" "film-grain=20:crf=15:tune=0:preset=8:keyint=48:tile-rows=2:tile-columns=2:fast-decode=2"
-# cd ..
-
-# cd build && ninja && ./vtranscode "../videos/inputs/4k_ll.mkv" "../videos/outputs/4k_ll_x264.mp4" "libx264"
-# cd ..
-# cd build && ninja && ./vtranscode "../videos/inputs/4k_ll.mkv" "../videos/outputs/4k_ll_x264_params.mp4" "libx264" "crf=45"
-# cd ..
-# cd build && ninja && ./vtranscode "../videos/inputs/4k_ll.mkv" "../videos/outputs/4k_ll_x264_params.mkv" "libx264" "crf=45"
-# cd ..
-
-# cd build && ninja && ./vtranscode "../videos/inputs/4k_ll.mkv" "../videos/outputs/4k_ll_x265.mp4" "libx265"
-# cd ..
-# cd build && ninja && ./vtranscode "../videos/inputs/4k_ll.mkv" "../videos/outputs/4k_ll_x265_params.mp4" "libx265" "crf=20:tune=grain"
-# cd ..
-# cd build && ninja && ./vtranscode "../videos/inputs/4k_ll.mkv" "../videos/outputs/4k_ll_x265_params.mkv" "libx265" "crf=20:tune=grain"
-# cd ..
-
 
 # if I try to transcode a 1920x1080 video to h263 using the following command:
 
