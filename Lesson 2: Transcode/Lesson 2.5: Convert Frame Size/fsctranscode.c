@@ -72,14 +72,14 @@ InputContext *open_input(const char *in_filename, int stream_idx)
   return in_ctx;
 }
 
-void close_input(InputContext *ctx)
+void close_input(InputContext *in_ctx)
 {
-  if (!ctx) return;
-  avformat_close_input(&ctx->fmt_ctx);
-  avcodec_free_context(&ctx->dec_ctx);
-  av_packet_free(&ctx->init_pkt);
-  av_frame_free(&ctx->dec_frame);
-  free(ctx);
+  if (!in_ctx) return;
+  avformat_close_input(&in_ctx->fmt_ctx);
+  avcodec_free_context(&in_ctx->dec_ctx);
+  av_packet_free(&in_ctx->init_pkt);
+  av_frame_free(&in_ctx->dec_frame);
+  free(in_ctx);
 }
 
 typedef struct OutputContext {
@@ -188,14 +188,14 @@ OutputContext *open_output(InputContext *in_ctx,
   return out_ctx;
 }
 
-void close_output(OutputContext *ctx)
+void close_output(OutputContext *out_ctx)
 {
-  if (!ctx) return;
-  if (ctx->fmt_ctx && !(ctx->fmt_ctx->flags & AVFMT_NOFILE))
-    avio_closep(&ctx->fmt_ctx->pb);
-  avformat_free_context(ctx->fmt_ctx);
-  avcodec_free_context(&ctx->enc_ctx);
-  av_packet_free(&ctx->enc_pkt);
+  if (!out_ctx) return;
+  if (out_ctx->fmt_ctx && !(out_ctx->fmt_ctx->flags & AVFMT_NOFILE))
+    avio_closep(&out_ctx->fmt_ctx->pb);
+  avformat_free_context(out_ctx->fmt_ctx);
+  avcodec_free_context(&out_ctx->enc_ctx);
+  av_packet_free(&out_ctx->enc_pkt);
 }
 
 #define SAMPLE_BUFFER_LENGTH AV_NUM_DATA_POINTERS
