@@ -105,6 +105,7 @@ void close_input(InputContext *in_ctx)
 typedef struct OutputContext {
   AVFormatContext *fmt_ctx;
   AVCodecContext *enc_ctx;
+  AVPacket *enc_pkt;
 } OutputContext;
 
 OutputContext *open_output(InputContext *in_ctx,
@@ -122,6 +123,7 @@ OutputContext *open_output(InputContext *in_ctx,
 
   out_ctx->fmt_ctx = NULL;
   out_ctx->enc_ctx = NULL;
+  out_ctx->enc_pkt = NULL;
 
   if (!(enc = avcodec_find_encoder_by_name(codec))) {
     fprintf(stderr, "Failed to find encoder.\n");
@@ -189,6 +191,12 @@ OutputContext *open_output(InputContext *in_ctx,
       goto end;
   }
 
+  if (!(out_ctx->enc_pkt = av_packet_alloc())) {
+    fprintf(stderr, "Failed to allocate AVPacket.\n");
+    ret = AVERROR(ENOMEM);
+    goto end;
+  }
+
   out_stream->time_base = out_ctx->enc_ctx->time_base;
 
   if (!(out_ctx->fmt_ctx->oformat->flags & AVFMT_NOFILE)) {
@@ -220,6 +228,7 @@ void close_output(OutputContext *out_ctx)
     avio_closep(&out_ctx->fmt_ctx->pb);
   avformat_free_context(out_ctx->fmt_ctx);
   avcodec_free_context(&out_ctx->enc_ctx);
+  av_packet_free(&out_ctx->enc_pkt);
   free(out_ctx);
 }
 
@@ -232,12 +241,12 @@ int encode_frame(InputContext *in_ctx, OutputContext *out_ctx)
   }
 
   while ((ret =
-    avcodec_receive_packet(out_ctx->enc_ctx, in_ctx->init_pkt)) >= 0)
+    avcodec_receive_packet(out_ctx->enc_ctx, out_ctx->enc_pkt)) >= 0)
   {
-    in_ctx->init_pkt->stream_index = 0;
+    out_ctx->enc_pkt->stream_index = 0;
 
     if ((ret =
-      av_interleaved_write_frame(out_ctx->fmt_ctx, in_ctx->init_pkt)) < 0)
+      av_interleaved_write_frame(out_ctx->fmt_ctx, out_ctx->enc_pkt)) < 0)
     {
       fprintf(stderr, "Failed to write packet to file.\n");
       return ret;
@@ -339,9 +348,16 @@ int main(int argc, char **argv)
     goto end;
   }
 
-  if ((ret = avcodec_send_frame(out_ctx->enc_ctx, NULL)) < 0) {
-    fprintf(stderr, "Failed to send frame to encoder.\n");
-    goto end;
+  in_ctx->init_pkt = NULL;
+  if ((ret = decode_packet(in_ctx, out_ctx)) < 0) {
+    fprintf(stderr, "Failed to decode packet.\n");
+    return ret;
+  }
+
+  in_ctx->dec_frame = NULL;
+  if ((ret = encode_frame(in_ctx, out_ctx)) < 0) {
+    fprintf(stderr, "Failed to encode frame.\n");
+    return ret;
   }
 
   if ((ret = av_write_trailer(out_ctx->fmt_ctx)) < 0) {
