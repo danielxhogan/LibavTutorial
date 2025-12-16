@@ -5,6 +5,7 @@
 typedef struct InputContext {
   AVFormatContext *fmt_ctx;
   AVCodecContext *dec_ctx;
+  AVPacket *init_pkt;
   AVFrame *dec_frame;
   int stream_idx;
 } InputContext;
@@ -22,6 +23,7 @@ InputContext *open_input(const char *in_filename, int stream_idx)
 
   in_ctx->fmt_ctx = NULL;
   in_ctx->dec_ctx = NULL;
+  in_ctx->init_pkt = NULL;
   in_ctx->dec_frame = NULL;
   in_ctx->stream_idx = stream_idx;
 
@@ -62,6 +64,11 @@ InputContext *open_input(const char *in_filename, int stream_idx)
     return NULL;
   }
 
+  if (!(in_ctx->init_pkt = av_packet_alloc())) {
+    fprintf(stderr, "Failed to allocate AVPacket.\n");
+    return NULL;
+  }
+
   return in_ctx;
 }
 
@@ -70,6 +77,7 @@ void close_input(InputContext *ctx)
   if (!ctx) return;
   avformat_close_input(&ctx->fmt_ctx);
   avcodec_free_context(&ctx->dec_ctx);
+  av_packet_free(&ctx->init_pkt);
   av_frame_free(&ctx->dec_frame);
   free(ctx);
 }
@@ -77,6 +85,7 @@ void close_input(InputContext *ctx)
 typedef struct OutputContext {
   AVFormatContext *fmt_ctx;
   AVCodecContext *enc_ctx;
+  AVPacket *enc_pkt;
 } OutputContext;
 
 OutputContext *open_output(InputContext *in_ctx,
@@ -93,6 +102,7 @@ OutputContext *open_output(InputContext *in_ctx,
 
   out_ctx->fmt_ctx = NULL;
   out_ctx->enc_ctx = NULL;
+  out_ctx->enc_pkt = NULL;
 
   if (!(enc = avcodec_find_encoder_by_name(codec))) {
     fprintf(stderr, "Failed to find encoder.\n");
@@ -180,6 +190,7 @@ void close_output(OutputContext *ctx)
     avio_closep(&ctx->fmt_ctx->pb);
   avformat_free_context(ctx->fmt_ctx);
   avcodec_free_context(&ctx->enc_ctx);
+  av_packet_free(&ctx->enc_pkt);
 }
 
 #define SAMPLE_BUFFER_LENGTH AV_NUM_DATA_POINTERS
@@ -353,7 +364,6 @@ int main(int argc, char **argv)
 {
   const char *in_filename, *out_filename, *codec;
   int ret = 0;
-  AVPacket *pkt = NULL;
 
   InputContext *in_ctx = NULL;
   OutputContext *out_ctx = NULL;
@@ -390,20 +400,15 @@ int main(int argc, char **argv)
     goto end;
   }
 
-  if (!(pkt = av_packet_alloc())) {
-    fprintf(stderr, "Failed to allocate AVPacket.\n");
-    ret = AVERROR(ENOMEM);
-    goto end;
-  }
 
-  while ((ret = av_read_frame(in_ctx->fmt_ctx, pkt)) >= 0)
+  while ((ret = av_read_frame(in_ctx->fmt_ctx, in_ctx->init_pkt)) >= 0)
   {
-    if (!(pkt->stream_index == in_ctx->stream_idx)) {
-      av_packet_unref(pkt);
+    if (!(in_ctx->init_pkt->stream_index == in_ctx->stream_idx)) {
+      av_packet_unref(in_ctx->init_pkt);
       continue;
     }
 
-    if ((ret = avcodec_send_packet(in_ctx->dec_ctx, pkt)) < 0) {
+    if ((ret = avcodec_send_packet(in_ctx->dec_ctx, in_ctx->init_pkt)) < 0) {
       fprintf(stderr, "Failed to send packet to decoder.\n");
       goto end;
     }
@@ -431,11 +436,14 @@ int main(int argc, char **argv)
           goto end;
         }
 
-        while ((ret = avcodec_receive_packet(out_ctx->enc_ctx, pkt)) >= 0)
+        while ((ret =
+          avcodec_receive_packet(out_ctx->enc_ctx, out_ctx->enc_pkt)) >= 0)
         {
-          pkt->stream_index = 0;
+          out_ctx->enc_pkt->stream_index = 0;
 
-          if ((ret = av_interleaved_write_frame(out_ctx->fmt_ctx, pkt)) < 0) {
+          if ((ret =
+            av_interleaved_write_frame(out_ctx->fmt_ctx, out_ctx->enc_pkt)) < 0)
+          {
             fprintf(stderr, "Failed to write packet to file.\n");
             goto end;
           }
@@ -474,7 +482,6 @@ end:
   close_input(in_ctx);
   close_output(out_ctx);
   fsc_ctx_free(fsc_ctx);
-  av_packet_free(&pkt);
 
   if (ret < 0 && ret != AVERROR(EAGAIN) && ret != AVERROR_EOF) {
     fprintf(stderr, "\nLibav Error: %s\n", av_err2str(ret));
