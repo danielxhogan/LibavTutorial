@@ -307,9 +307,6 @@ int fsc_ctx_add_samples_to_buffer(FrameSizeConversionContext *fsc_ctx,
 {
   int ret = 0;
 
-  // printf("in_ctx->dec_frame->nb_samples: %d\n", in_ctx->dec_frame->nb_samples);
-  // printf("out_ctx->enc_ctx->frame_size: %d\n", out_ctx->enc_ctx->frame_size);
-
   if ((ret = fsc_ctx_alloc_buffer(fsc_ctx,
     fsc_ctx->frame_size + dec_frame->nb_samples)) < 0)
   {
