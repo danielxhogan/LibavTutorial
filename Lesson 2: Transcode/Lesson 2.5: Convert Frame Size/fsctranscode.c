@@ -11,64 +11,58 @@ typedef struct InputContext {
 
 InputContext *open_input(const char *in_filename, int stream_idx)
 {
-  int ret = 0;
+  InputContext *in_ctx;
   AVStream *in_stream;
   const AVCodec *dec;
 
-  InputContext *ctx = malloc(sizeof(InputContext));
-  if (!ctx) {
-    ret = ENOMEM;
+  if (!(in_ctx = malloc(sizeof(InputContext)))) {
+    fprintf(stderr, "Failed to allocate input context.\n");
     return NULL;
   }
 
-  ctx->fmt_ctx = NULL;
-  ctx->dec_ctx = NULL;
-  ctx->dec_frame = NULL;
-  ctx->stream_idx = stream_idx;
+  in_ctx->fmt_ctx = NULL;
+  in_ctx->dec_ctx = NULL;
+  in_ctx->dec_frame = NULL;
+  in_ctx->stream_idx = stream_idx;
 
-  if ((ret = avformat_open_input(&ctx->fmt_ctx, in_filename, NULL, NULL)) < 0) {
+  if (avformat_open_input(&in_ctx->fmt_ctx, in_filename, NULL, NULL) < 0) {
     fprintf(stderr, "Failed to open input video file: '%s'.\n", in_filename);
     return NULL;
   }
 
-  if ((ret = avformat_find_stream_info(ctx->fmt_ctx, NULL)) < 0) {
+  if (avformat_find_stream_info(in_ctx->fmt_ctx, NULL) < 0) {
     fprintf(stderr, "Failed to retrieve input stream info.");
     return NULL;
   }
 
-  in_stream = ctx->fmt_ctx->streams[stream_idx];
+  in_stream = in_ctx->fmt_ctx->streams[stream_idx];
 
   if (!(dec = avcodec_find_decoder(in_stream->codecpar->codec_id))) {
     fprintf(stderr, "Failed to find decoder.\n");
-    ret = AVERROR(EINVAL);
     return NULL;
   }
 
-  if (!(ctx->dec_ctx = avcodec_alloc_context3(dec))) {
+  if (!(in_ctx->dec_ctx = avcodec_alloc_context3(dec))) {
     fprintf(stderr, "Failed to allocate decoder context.\n");
-    ret = AVERROR(ENOMEM);
     return NULL;
   }
 
-  if ((ret =
-    avcodec_parameters_to_context(ctx->dec_ctx, in_stream->codecpar)) < 0)
-  {
+  if (avcodec_parameters_to_context(in_ctx->dec_ctx, in_stream->codecpar) < 0) {
     fprintf(stderr, "Failed to copy codec parameters to decoder context.\n");
     return NULL;
   }
 
-  if ((ret = avcodec_open2(ctx->dec_ctx, dec, NULL)) < 0) {
+  if (avcodec_open2(in_ctx->dec_ctx, dec, NULL) < 0) {
     fprintf(stderr, "Failed to open decoder.\n");
     return NULL;
   }
 
-  if (!(ctx->dec_frame = av_frame_alloc())) {
+  if (!(in_ctx->dec_frame = av_frame_alloc())) {
     fprintf(stderr, "Failed to allocate AVFrame.\n");
-    ret = AVERROR(ENOMEM);
     return NULL;
   }
 
-  return ctx;
+  return in_ctx;
 }
 
 void close_input(InputContext *ctx)
