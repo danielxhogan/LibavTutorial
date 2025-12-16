@@ -166,6 +166,11 @@ OutputContext *open_output(InputContext *in_ctx,
       return NULL;
   }
 
+  if (!(out_ctx->enc_pkt = av_packet_alloc())) {
+    fprintf(stderr, "Failed to allocate AVPacket.\n");
+    return NULL;
+  }
+
   out_stream->time_base = out_ctx->enc_ctx->time_base;
 
   if (!(out_ctx->fmt_ctx->oformat->flags & AVFMT_NOFILE)) {
