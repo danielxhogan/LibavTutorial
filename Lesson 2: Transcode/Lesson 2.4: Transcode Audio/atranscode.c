@@ -220,6 +220,34 @@ void close_output(OutputContext *out_ctx)
   free(out_ctx);
 }
 
+int encode_frame(InputContext *in_ctx, OutputContext *out_ctx)
+{
+  int ret = 0;
+  if ((ret = avcodec_send_frame(out_ctx->enc_ctx, in_ctx->dec_frame)) < 0) {
+    fprintf(stderr, "Failed to send frame to encoder.\n");
+    return ret;
+  }
+
+  while ((ret =
+    avcodec_receive_packet(out_ctx->enc_ctx, in_ctx->init_pkt)) >= 0)
+  {
+    in_ctx->init_pkt->stream_index = 0;
+
+    if ((ret =
+      av_interleaved_write_frame(out_ctx->fmt_ctx, in_ctx->init_pkt)) < 0)
+    {
+      fprintf(stderr, "Failed to write packet to file.\n");
+      return ret;
+    }
+  }
+
+  if ((ret != AVERROR(EAGAIN)) && (ret != AVERROR_EOF)) {
+    fprintf(stderr, "Failed to receive packet from encoder.\n");
+    return ret;
+  }
+
+  return 0;
+}
 
 int decode_packet(InputContext *in_ctx, OutputContext *out_ctx)
 {
@@ -230,28 +258,11 @@ int decode_packet(InputContext *in_ctx, OutputContext *out_ctx)
     return ret;
   }
 
-  while ((ret = avcodec_receive_frame(in_ctx->dec_ctx,
-    in_ctx->dec_frame)) >= 0)
+  while ((ret =
+    avcodec_receive_frame(in_ctx->dec_ctx, in_ctx->dec_frame)) >= 0)
   {
-    if ((ret = avcodec_send_frame(out_ctx->enc_ctx,
-      in_ctx->dec_frame)) < 0)
-    {
-      fprintf(stderr, "Failed to send frame to encoder.\n");
-      return ret;
-    }
-
-    while ((ret = avcodec_receive_packet(out_ctx->enc_ctx, in_ctx->init_pkt)) >= 0)
-    {
-      in_ctx->init_pkt->stream_index = 0;
-
-      if ((ret = av_interleaved_write_frame(out_ctx->fmt_ctx, in_ctx->init_pkt)) < 0) {
-        fprintf(stderr, "Failed to write packet to file.\n");
-        return ret;
-      }
-    }
-
-    if ((ret != AVERROR(EAGAIN)) && (ret != AVERROR_EOF)) {
-      fprintf(stderr, "Failed to receive packet from encoder.\n");
+    if ((ret = encode_frame(in_ctx, out_ctx)) < 0) {
+      fprintf(stderr, "Failed to encode frame.\n");
       return ret;
     }
   }
