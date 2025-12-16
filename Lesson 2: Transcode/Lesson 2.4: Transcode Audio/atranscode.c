@@ -19,7 +19,7 @@ InputContext *open_input(const char *in_filename, int stream_idx)
   InputContext *in_ctx = malloc(sizeof(InputContext));
   if (!in_ctx) {
     ret = ENOMEM;
-    goto end;
+    return NULL;
   }
 
   in_ctx->fmt_ctx = NULL;
@@ -32,18 +32,18 @@ InputContext *open_input(const char *in_filename, int stream_idx)
     avformat_open_input(&in_ctx->fmt_ctx, in_filename, NULL, NULL)) < 0)
   {
     fprintf(stderr, "Failed to open input video file: '%s'.\n", in_filename);
-    goto end;
+    return NULL;
   }
 
   if ((ret = avformat_find_stream_info(in_ctx->fmt_ctx, NULL)) < 0) {
     fprintf(stderr, "Failed to retrieve input stream info.");
-    goto end;
+    return NULL;
   }
 
   if (stream_idx >= in_ctx->fmt_ctx->nb_streams) {
     fprintf(stderr, "Invalid stream index for file '%s'\n", in_filename);
     ret = -1;
-    goto end;
+    return NULL;
   }
 
   in_stream = in_ctx->fmt_ctx->streams[stream_idx];
@@ -51,44 +51,39 @@ InputContext *open_input(const char *in_filename, int stream_idx)
   if (!(dec = avcodec_find_decoder(in_stream->codecpar->codec_id))) {
     fprintf(stderr, "Failed to find decoder.\n");
     ret = AVERROR(EINVAL);
-    goto end;
+    return NULL;
   }
 
   if (!(in_ctx->dec_ctx = avcodec_alloc_context3(dec))) {
     fprintf(stderr, "Failed to allocate decoder context.\n");
     ret = AVERROR(ENOMEM);
-    goto end;
+    return NULL;
   }
 
   if ((ret =
     avcodec_parameters_to_context(in_ctx->dec_ctx, in_stream->codecpar)) < 0)
   {
     fprintf(stderr, "Failed to copy codec parameters to decoder context.\n");
-    goto end;
+    return NULL;
   }
 
   if ((ret = avcodec_open2(in_ctx->dec_ctx, dec, NULL)) < 0) {
     fprintf(stderr, "Failed to open decoder.\n");
-    goto end;
+    return NULL;
   }
 
   if (!(in_ctx->init_pkt = av_packet_alloc())) {
     fprintf(stderr, "Failed to allocate AVPacket.\n");
     ret = AVERROR(ENOMEM);
-    goto end;
+    return NULL;
   }
 
   if (!(in_ctx->dec_frame = av_frame_alloc())) {
     fprintf(stderr, "Failed to allocate AVFrame.\n");
     ret = AVERROR(ENOMEM);
-    goto end;
-  }
-
-end:
-  if (ret < 0 && ret != AVERROR_EOF && ret != AVERROR(EAGAIN)) {
-    fprintf(stderr, "\nLibav Error: %s\n", av_err2str(ret));
     return NULL;
   }
+
   return in_ctx;
 }
 
@@ -118,7 +113,7 @@ OutputContext *open_output(InputContext *in_ctx,
   OutputContext *out_ctx = malloc(sizeof(OutputContext));
   if (!out_ctx) {
     ret = ENOMEM;
-    goto end;
+    return NULL;
   }
 
   out_ctx->fmt_ctx = NULL;
@@ -128,20 +123,20 @@ OutputContext *open_output(InputContext *in_ctx,
   if (!(enc = avcodec_find_encoder_by_name(codec))) {
     fprintf(stderr, "Failed to find encoder.\n");
     ret = AVERROR_UNKNOWN;
-    goto end;
+    return NULL;
   }
 
   if (!(out_ctx->enc_ctx = avcodec_alloc_context3(enc))) {
     fprintf(stderr, "Failed to allocate encoder context.\n");
     ret = AVERROR(ENOMEM);
-    goto end;
+    return NULL;
   }
 
   if ((ret = av_channel_layout_copy(&out_ctx->enc_ctx->ch_layout,
     &in_ctx->dec_ctx->ch_layout)) < 0)
   {
     fprintf(stderr, "Failed to set channel layout on encoder.\n");
-    goto end;
+    return NULL;
   }
 
   out_ctx->enc_ctx->sample_fmt = in_ctx->dec_ctx->sample_fmt;
@@ -151,27 +146,27 @@ OutputContext *open_output(InputContext *in_ctx,
 
   if ((ret = avcodec_open2(out_ctx->enc_ctx, enc, NULL)) < 0) {
     fprintf(stderr, "Failed to open encoder.\n");
-    goto end;
+    return NULL;
   }
 
   if ((ret = avformat_alloc_output_context2(&out_ctx->fmt_ctx,
     NULL, NULL, out_filename)))
   {
     fprintf(stderr, "Failed to allocate output format context.\n");
-    goto end;
+    return NULL;
   }
 
   if ((ret = av_dict_copy(&out_ctx->fmt_ctx->metadata,
     in_ctx->fmt_ctx->metadata, AV_DICT_DONT_OVERWRITE)) < 0)
   {
     fprintf(stderr, "Failed to copy file metadata.\n");
-    goto end;
+    return NULL;
   }
 
   if (!(out_stream = avformat_new_stream(out_ctx->fmt_ctx, NULL))) {
     fprintf(stderr, "Failed to allocate new output stream.\n");
     ret = AVERROR(ENOMEM);
-    goto end;
+    return NULL;
   }
 
   in_stream = in_ctx->fmt_ctx->streams[in_ctx->stream_idx];
@@ -180,7 +175,7 @@ OutputContext *open_output(InputContext *in_ctx,
     in_stream->metadata, AV_DICT_DONT_OVERWRITE)) < 0)
   {
     fprintf(stderr, "Failed to copy audio metadata.\n");
-    goto end;
+    return NULL;
   }
 
   if ((ret =
@@ -188,13 +183,13 @@ OutputContext *open_output(InputContext *in_ctx,
   {
     fprintf(stderr,
       "Failed to copy codec parameters from encoder context to stream.\n");
-      goto end;
+      return NULL;
   }
 
   if (!(out_ctx->enc_pkt = av_packet_alloc())) {
     fprintf(stderr, "Failed to allocate AVPacket.\n");
     ret = AVERROR(ENOMEM);
-    goto end;
+    return NULL;
   }
 
   out_stream->time_base = out_ctx->enc_ctx->time_base;
@@ -204,20 +199,15 @@ OutputContext *open_output(InputContext *in_ctx,
       avio_open(&out_ctx->fmt_ctx->pb, out_filename, AVIO_FLAG_WRITE)) < 0)
     {
       fprintf(stderr, "Failed to open output file.\n");
-      goto end;
+      return NULL;
     }
   }
 
   if ((ret = avformat_write_header(out_ctx->fmt_ctx, NULL)) < 0) {
     fprintf(stderr, "Failed to write header for output file.\n");
-    goto end;
-  }
-
-end:
-  if (ret < 0 && ret != AVERROR_EOF && ret != AVERROR(EAGAIN)) {
-    fprintf(stderr, "\nLibav Error: %s\n", av_err2str(ret));
     return NULL;
   }
+
   return out_ctx;
 }
 
@@ -351,13 +341,13 @@ int main(int argc, char **argv)
   in_ctx->init_pkt = NULL;
   if ((ret = decode_packet(in_ctx, out_ctx)) < 0) {
     fprintf(stderr, "Failed to decode packet.\n");
-    return ret;
+    goto end;
   }
 
   in_ctx->dec_frame = NULL;
   if ((ret = encode_frame(in_ctx, out_ctx)) < 0) {
     fprintf(stderr, "Failed to encode frame.\n");
-    return ret;
+    goto end;
   }
 
   if ((ret = av_write_trailer(out_ctx->fmt_ctx)) < 0) {
@@ -371,7 +361,8 @@ end:
 
   if (ret < 0 && ret != AVERROR(EAGAIN) && ret != AVERROR_EOF) {
     fprintf(stderr, "\nLibav Error: %s\n", av_err2str(ret));
-    return -1;
+    return ret;
   }
+
   return 0;
 }
