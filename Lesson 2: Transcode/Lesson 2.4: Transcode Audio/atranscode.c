@@ -306,7 +306,7 @@ int main(int argc, char **argv)
   int ret = 0;
 
   InputContext *in_ctx = NULL;
-  OutputContext *output_ctx = NULL;
+  OutputContext *out_ctx = NULL;
 
   if (argc != 4) {
     printf("\nUsage: %s <input file> <output file> <codec>\n\n\t"
@@ -325,30 +325,30 @@ int main(int argc, char **argv)
     goto end;
   }
 
-  if (!(output_ctx = open_output(in_ctx, codec, out_filename)))
+  if (!(out_ctx = open_output(in_ctx, codec, out_filename)))
   {
     fprintf(stderr, "Failed to open output.\n");
     goto end;
   }
 
-  if ((ret = transcode(in_ctx, output_ctx)) < 0) {
+  if ((ret = transcode(in_ctx, out_ctx)) < 0) {
     fprintf(stderr, "Failed to transcode file.\n");
     goto end;
   }
 
-  if ((ret = avcodec_send_frame(output_ctx->enc_ctx, NULL)) < 0) {
+  if ((ret = avcodec_send_frame(out_ctx->enc_ctx, NULL)) < 0) {
     fprintf(stderr, "Failed to send frame to encoder.\n");
     goto end;
   }
 
-  if ((ret = av_write_trailer(output_ctx->fmt_ctx)) < 0) {
+  if ((ret = av_write_trailer(out_ctx->fmt_ctx)) < 0) {
     fprintf(stderr, "Failed to write trailer to file.\n");
     goto end;
   }
 
 end:
   close_input(in_ctx);
-  close_output(output_ctx);
+  close_output(out_ctx);
 
   if (ret < 0 && ret != AVERROR(EAGAIN) && ret != AVERROR_EOF) {
     fprintf(stderr, "\nLibav Error: %s\n", av_err2str(ret));
