@@ -330,7 +330,8 @@ int fsc_ctx_add_samples_to_buffer(FrameSizeConversionContext *fsc_ctx,
 
 int fsc_ctx_make_frame(FrameSizeConversionContext *fsc_ctx)
 {
-  int ret = 0;
+  int nb_remaining_samples, ret = 0;
+  uint8_t *new_first_sample;
 
   if (fsc_ctx->nb_samples_in_buffer < fsc_ctx->frame_size) {
     fprintf(stderr, "Not enough samples in buffer to make a frame.\n");
@@ -346,9 +347,16 @@ int fsc_ctx_make_frame(FrameSizeConversionContext *fsc_ctx)
     return ret;
   }
 
-  memmove(fsc_ctx->sample_buffer[0],
-    fsc_ctx->sample_buffer[0] + fsc_ctx->frame_size * fsc_ctx->bytes_per_sample,
-    (fsc_ctx->nb_samples_in_buffer - fsc_ctx->frame_size) * fsc_ctx->bytes_per_sample);
+  new_first_sample =
+    fsc_ctx->sample_buffer[0] +
+    fsc_ctx->frame_size *
+    fsc_ctx->bytes_per_sample;
+
+  nb_remaining_samples =
+    (fsc_ctx->nb_samples_in_buffer - fsc_ctx->frame_size) *
+    fsc_ctx->bytes_per_sample;
+
+  memmove(fsc_ctx->sample_buffer[0], new_first_sample, nb_remaining_samples);
 
   fsc_ctx->nb_samples_in_buffer -= fsc_ctx->frame_size;
   return ret;
