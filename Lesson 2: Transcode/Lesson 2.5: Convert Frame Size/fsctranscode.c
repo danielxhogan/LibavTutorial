@@ -50,7 +50,9 @@ InputContext *open_input(const char *in_filename, int stream_idx)
     return NULL;
   }
 
-  if ((ret = avcodec_parameters_to_context(ctx->dec_ctx, in_stream->codecpar)) < 0) {
+  if ((ret =
+    avcodec_parameters_to_context(ctx->dec_ctx, in_stream->codecpar)) < 0)
+  {
     fprintf(stderr, "Failed to copy codec parameters to decoder context.\n");
     return NULL;
   }
@@ -167,7 +169,8 @@ OutputContext *open_output(AVCodecContext *dec_ctx,
   out_stream->time_base = ctx->enc_ctx->time_base;
 
   if (!(ctx->fmt_ctx->oformat->flags & AVFMT_NOFILE)) {
-    if ((ret = avio_open(&ctx->fmt_ctx->pb, out_filename, AVIO_FLAG_WRITE)) < 0)
+    if ((ret =
+      avio_open(&ctx->fmt_ctx->pb, out_filename, AVIO_FLAG_WRITE)) < 0)
     {
       fprintf(stderr, "Failed to open output file.\n");
       return NULL;
@@ -316,7 +319,7 @@ int fsc_ctx_add_samples_to_buffer(FrameSizeConversionContext *fsc_ctx,
 
   if (ret < 0) {
     fprintf(stderr,
-      "Failed to copy samples from decoded frame to fsc_ctx->sample_buffer.\n");
+      "Failed to copy samples from decoded frame to sample_buffer.\n");
     return ret;
   }
 
@@ -421,7 +424,8 @@ int main(int argc, char **argv)
     while ((ret =
       avcodec_receive_frame(in_ctx->dec_ctx, in_ctx->dec_frame)) >= 0)
     {
-      if ((ret = fsc_ctx_add_samples_to_buffer(fsc_ctx, in_ctx->dec_frame)) < 0)
+      if ((ret =
+        fsc_ctx_add_samples_to_buffer(fsc_ctx, in_ctx->dec_frame)) < 0)
       {
         fprintf(stderr, "Failed to add samples to buffer.\n");
         goto end;
