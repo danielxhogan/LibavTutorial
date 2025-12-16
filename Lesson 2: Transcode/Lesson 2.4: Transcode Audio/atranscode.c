@@ -181,7 +181,9 @@ OutputContext *open_output(InputContext *in_ctx,
     goto end;
   }
 
-  if ((ret = avcodec_parameters_from_context(out_stream->codecpar, out_ctx->enc_ctx))) {
+  if ((ret =
+    avcodec_parameters_from_context(out_stream->codecpar, out_ctx->enc_ctx)))
+  {
     fprintf(stderr,
       "Failed to copy codec parameters from encoder context to stream.\n");
       goto end;
@@ -190,7 +192,8 @@ OutputContext *open_output(InputContext *in_ctx,
   out_stream->time_base = out_ctx->enc_ctx->time_base;
 
   if (!(out_ctx->fmt_ctx->oformat->flags & AVFMT_NOFILE)) {
-    if ((ret = avio_open(&out_ctx->fmt_ctx->pb, out_filename, AVIO_FLAG_WRITE)) < 0)
+    if ((ret =
+      avio_open(&out_ctx->fmt_ctx->pb, out_filename, AVIO_FLAG_WRITE)) < 0)
     {
       fprintf(stderr, "Failed to open output file.\n");
       goto end;
