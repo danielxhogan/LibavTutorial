@@ -79,12 +79,11 @@ typedef struct OutputContext {
   AVCodecContext *enc_ctx;
 } OutputContext;
 
-OutputContext *open_output(AVCodecContext *dec_ctx,
-  const char *codec, const char *out_filename,
-  AVDictionary *fmt_metadata, AVDictionary *stream_metadata)
+OutputContext *open_output(InputContext *in_ctx,
+  const char *codec, const char *out_filename)
 {
   OutputContext *out_ctx;
-  AVStream *out_stream;
+  AVStream *in_stream, *out_stream;
   const AVCodec *enc;
 
   if (!( out_ctx = malloc(sizeof(OutputContext)))) {
@@ -106,16 +105,16 @@ OutputContext *open_output(AVCodecContext *dec_ctx,
   }
 
   if (av_channel_layout_copy(&out_ctx->enc_ctx->ch_layout,
-    &dec_ctx->ch_layout) < 0)
+    &in_ctx->dec_ctx->ch_layout) < 0)
   {
     fprintf(stderr, "Failed to set channel layout on encoder.\n");
     return NULL;
   }
 
-  out_ctx->enc_ctx->sample_fmt = dec_ctx->sample_fmt;
-  out_ctx->enc_ctx->sample_rate = dec_ctx->sample_rate;
+  out_ctx->enc_ctx->sample_fmt = in_ctx->dec_ctx->sample_fmt;
+  out_ctx->enc_ctx->sample_rate = in_ctx->dec_ctx->sample_rate;
   out_ctx->enc_ctx->time_base = (AVRational) {1, out_ctx->enc_ctx->sample_rate};
-  out_ctx->enc_ctx->bit_rate = dec_ctx->bit_rate;
+  out_ctx->enc_ctx->bit_rate = in_ctx->dec_ctx->bit_rate;
 
   if (avcodec_open2(out_ctx->enc_ctx, enc, NULL) < 0) {
     fprintf(stderr, "Failed to open encoder.\n");
@@ -130,7 +129,7 @@ OutputContext *open_output(AVCodecContext *dec_ctx,
   }
 
   if (av_dict_copy(&out_ctx->fmt_ctx->metadata,
-    fmt_metadata, AV_DICT_DONT_OVERWRITE) < 0)
+    in_ctx->fmt_ctx->metadata, AV_DICT_DONT_OVERWRITE) < 0)
   {
     fprintf(stderr, "Failed to copy file metadata.\n");
     return NULL;
@@ -141,8 +140,10 @@ OutputContext *open_output(AVCodecContext *dec_ctx,
     return NULL;
   }
 
+  in_stream = in_ctx->fmt_ctx->streams[in_ctx->stream_idx];
+
   if (av_dict_copy(&out_stream->metadata,
-    stream_metadata, AV_DICT_DONT_OVERWRITE) < 0)
+    in_stream->metadata, AV_DICT_DONT_OVERWRITE) < 0)
   {
     fprintf(stderr, "Failed to copy audio metadata.\n");
     return NULL;
@@ -376,9 +377,8 @@ int main(int argc, char **argv)
     goto end;
   }
 
-  if (!(out_ctx = open_output(in_ctx->dec_ctx,
-    codec, out_filename, in_ctx->fmt_ctx->metadata,
-    in_ctx->fmt_ctx->streams[in_ctx->stream_idx]->metadata)))
+  if (!(out_ctx = open_output(in_ctx,
+    codec, out_filename)))
   {
     fprintf(stderr, "Failed to open output.\n");
     goto end;
