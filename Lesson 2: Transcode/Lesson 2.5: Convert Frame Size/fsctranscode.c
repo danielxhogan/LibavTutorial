@@ -83,100 +83,93 @@ OutputContext *open_output(AVCodecContext *dec_ctx,
   const char *codec, const char *out_filename,
   AVDictionary *fmt_metadata, AVDictionary *stream_metadata)
 {
-  int ret;
+  OutputContext *out_ctx;
   AVStream *out_stream;
   const AVCodec *enc;
 
-  OutputContext *ctx = malloc(sizeof(OutputContext));
-  if (!ctx) {
-    ret = ENOMEM;
+  if (!( out_ctx = malloc(sizeof(OutputContext)))) {
+    fprintf(stderr, "Failed to allocate output context.\n");
     return NULL;
   }
 
-  ctx->fmt_ctx = NULL;
-  ctx->enc_ctx = NULL;
+  out_ctx->fmt_ctx = NULL;
+  out_ctx->enc_ctx = NULL;
 
   if (!(enc = avcodec_find_encoder_by_name(codec))) {
     fprintf(stderr, "Failed to find encoder.\n");
-    ret = AVERROR_UNKNOWN;
     return NULL;
   }
 
-  if (!(ctx->enc_ctx = avcodec_alloc_context3(enc))) {
+  if (!(out_ctx->enc_ctx = avcodec_alloc_context3(enc))) {
     fprintf(stderr, "Failed to allocate encoder context.\n");
-    ret = AVERROR(ENOMEM);
     return NULL;
   }
 
-  if ((ret = av_channel_layout_copy(&ctx->enc_ctx->ch_layout,
-    &dec_ctx->ch_layout)) < 0)
+  if (av_channel_layout_copy(&out_ctx->enc_ctx->ch_layout,
+    &dec_ctx->ch_layout) < 0)
   {
     fprintf(stderr, "Failed to set channel layout on encoder.\n");
     return NULL;
   }
 
-  ctx->enc_ctx->sample_fmt = dec_ctx->sample_fmt;
-  ctx->enc_ctx->sample_rate = dec_ctx->sample_rate;
-  ctx->enc_ctx->time_base = (AVRational) {1, ctx->enc_ctx->sample_rate};
-  ctx->enc_ctx->bit_rate = dec_ctx->bit_rate;
+  out_ctx->enc_ctx->sample_fmt = dec_ctx->sample_fmt;
+  out_ctx->enc_ctx->sample_rate = dec_ctx->sample_rate;
+  out_ctx->enc_ctx->time_base = (AVRational) {1, out_ctx->enc_ctx->sample_rate};
+  out_ctx->enc_ctx->bit_rate = dec_ctx->bit_rate;
 
-  if ((ret = avcodec_open2(ctx->enc_ctx, enc, NULL)) < 0) {
+  if (avcodec_open2(out_ctx->enc_ctx, enc, NULL) < 0) {
     fprintf(stderr, "Failed to open encoder.\n");
     return NULL;
   }
 
-  if ((ret = avformat_alloc_output_context2(&ctx->fmt_ctx,
-    NULL, NULL, out_filename)))
+  if (avformat_alloc_output_context2(&out_ctx->fmt_ctx,
+    NULL, NULL, out_filename))
   {
     fprintf(stderr, "Failed to allocate output format context.\n");
     return NULL;
   }
 
-  if ((ret = av_dict_copy(&ctx->fmt_ctx->metadata,
-    fmt_metadata, AV_DICT_DONT_OVERWRITE)) < 0)
+  if (av_dict_copy(&out_ctx->fmt_ctx->metadata,
+    fmt_metadata, AV_DICT_DONT_OVERWRITE) < 0)
   {
     fprintf(stderr, "Failed to copy file metadata.\n");
     return NULL;
   }
 
-  if (!(out_stream = avformat_new_stream(ctx->fmt_ctx, NULL))) {
+  if (!(out_stream = avformat_new_stream(out_ctx->fmt_ctx, NULL))) {
     fprintf(stderr, "Failed to allocate new output stream.\n");
-    ret = AVERROR(ENOMEM);
     return NULL;
   }
 
-  if ((ret = av_dict_copy(&out_stream->metadata,
-    stream_metadata, AV_DICT_DONT_OVERWRITE)) < 0)
+  if (av_dict_copy(&out_stream->metadata,
+    stream_metadata, AV_DICT_DONT_OVERWRITE) < 0)
   {
     fprintf(stderr, "Failed to copy audio metadata.\n");
     return NULL;
   }
 
-  if ((ret =
-    avcodec_parameters_from_context(out_stream->codecpar, ctx->enc_ctx)))
+  if (avcodec_parameters_from_context(out_stream->codecpar, out_ctx->enc_ctx))
   {
     fprintf(stderr,
       "Failed to copy codec parameters from encoder context to stream.\n");
       return NULL;
   }
 
-  out_stream->time_base = ctx->enc_ctx->time_base;
+  out_stream->time_base = out_ctx->enc_ctx->time_base;
 
-  if (!(ctx->fmt_ctx->oformat->flags & AVFMT_NOFILE)) {
-    if ((ret =
-      avio_open(&ctx->fmt_ctx->pb, out_filename, AVIO_FLAG_WRITE)) < 0)
-    {
+  if (!(out_ctx->fmt_ctx->oformat->flags & AVFMT_NOFILE)) {
+    if (avio_open(&out_ctx->fmt_ctx->pb, out_filename, AVIO_FLAG_WRITE) < 0) {
       fprintf(stderr, "Failed to open output file.\n");
       return NULL;
     }
   }
 
-  if ((ret = avformat_write_header(ctx->fmt_ctx, NULL)) < 0) {
+  if (avformat_write_header(out_ctx->fmt_ctx, NULL) < 0) {
     fprintf(stderr, "Failed to write header for output file.\n");
     return NULL;
   }
 
-  return ctx;
+  return out_ctx;
 }
 
 void close_output(OutputContext *ctx)
