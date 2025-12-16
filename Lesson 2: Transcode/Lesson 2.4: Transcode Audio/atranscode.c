@@ -26,7 +26,9 @@ InputContext *open_input(const char *in_filename, int stream_idx)
   in_ctx->dec_frame = NULL;
   in_ctx->stream_idx = stream_idx;
 
-  if ((ret = avformat_open_input(&in_ctx->fmt_ctx, in_filename, NULL, NULL)) < 0) {
+  if ((ret =
+    avformat_open_input(&in_ctx->fmt_ctx, in_filename, NULL, NULL)) < 0)
+  {
     fprintf(stderr, "Failed to open input video file: '%s'.\n", in_filename);
     goto end;
   }
@@ -96,12 +98,11 @@ typedef struct OutputContext {
   AVCodecContext *enc_ctx;
 } OutputContext;
 
-OutputContext *open_output(AVCodecContext *dec_ctx,
-  const char *codec, const char *out_filename,
-  AVDictionary *fmt_metadata, AVDictionary *stream_metadata)
+OutputContext *open_output(InputContext *in_ctx,
+  const char *codec, const char *out_filename)
 {
   int ret;
-  AVStream *out_stream;
+  AVStream *in_stream, *out_stream;
   const AVCodec *enc;
 
   OutputContext *out_ctx = malloc(sizeof(OutputContext));
@@ -126,16 +127,16 @@ OutputContext *open_output(AVCodecContext *dec_ctx,
   }
 
   if ((ret = av_channel_layout_copy(&out_ctx->enc_ctx->ch_layout,
-    &dec_ctx->ch_layout)) < 0)
+    &in_ctx->dec_ctx->ch_layout)) < 0)
   {
     fprintf(stderr, "Failed to set channel layout on encoder.\n");
     goto end;
   }
 
-  out_ctx->enc_ctx->sample_fmt = dec_ctx->sample_fmt;
-  out_ctx->enc_ctx->sample_rate = dec_ctx->sample_rate;
+  out_ctx->enc_ctx->sample_fmt = in_ctx->dec_ctx->sample_fmt;
+  out_ctx->enc_ctx->sample_rate = in_ctx->dec_ctx->sample_rate;
   out_ctx->enc_ctx->time_base = (AVRational) {1, out_ctx->enc_ctx->sample_rate};
-  out_ctx->enc_ctx->bit_rate = dec_ctx->bit_rate;
+  out_ctx->enc_ctx->bit_rate = in_ctx->dec_ctx->bit_rate;
 
   if ((ret = avcodec_open2(out_ctx->enc_ctx, enc, NULL)) < 0) {
     fprintf(stderr, "Failed to open encoder.\n");
@@ -150,7 +151,7 @@ OutputContext *open_output(AVCodecContext *dec_ctx,
   }
 
   if ((ret = av_dict_copy(&out_ctx->fmt_ctx->metadata,
-    fmt_metadata, AV_DICT_DONT_OVERWRITE)) < 0)
+    in_ctx->fmt_ctx->metadata, AV_DICT_DONT_OVERWRITE)) < 0)
   {
     fprintf(stderr, "Failed to copy file metadata.\n");
     goto end;
@@ -162,8 +163,10 @@ OutputContext *open_output(AVCodecContext *dec_ctx,
     goto end;
   }
 
+  in_stream = in_ctx->fmt_ctx->streams[in_ctx->stream_idx];
+
   if ((ret = av_dict_copy(&out_stream->metadata,
-    stream_metadata, AV_DICT_DONT_OVERWRITE)) < 0)
+    in_stream->metadata, AV_DICT_DONT_OVERWRITE)) < 0)
   {
     fprintf(stderr, "Failed to copy audio metadata.\n");
     goto end;
@@ -214,7 +217,7 @@ int main(int argc, char **argv)
   int ret = 0;
   AVPacket *pkt = NULL;
 
-  InputContext *input_ctx = NULL;
+  InputContext *in_ctx = NULL;
   OutputContext *output_ctx = NULL;
 
   if (argc != 4) {
@@ -229,14 +232,12 @@ int main(int argc, char **argv)
   out_filename = argv[2];
   codec = argv[3];
 
-  if (!(input_ctx = open_input(in_filename, 1))) {
+  if (!(in_ctx = open_input(in_filename, 1))) {
     fprintf(stderr, "Failed to open input.\n");
     goto end;
   }
 
-  if (!(output_ctx = open_output(input_ctx->dec_ctx,
-    codec, out_filename, input_ctx->fmt_ctx->metadata,
-    input_ctx->fmt_ctx->streams[input_ctx->stream_idx]->metadata)))
+  if (!(output_ctx = open_output(in_ctx, codec, out_filename)))
   {
     fprintf(stderr, "Failed to open output.\n");
     goto end;
@@ -248,23 +249,23 @@ int main(int argc, char **argv)
     goto end;
   }
 
-  while ((ret = av_read_frame(input_ctx->fmt_ctx, pkt)) >= 0)
+  while ((ret = av_read_frame(in_ctx->fmt_ctx, pkt)) >= 0)
   {
-    if (!(pkt->stream_index == input_ctx->stream_idx)) {
+    if (!(pkt->stream_index == in_ctx->stream_idx)) {
       av_packet_unref(pkt);
       continue;
     }
 
-    if ((ret = avcodec_send_packet(input_ctx->dec_ctx, pkt)) < 0) {
+    if ((ret = avcodec_send_packet(in_ctx->dec_ctx, pkt)) < 0) {
       fprintf(stderr, "Failed to send packet to decoder.\n");
       goto end;
     }
 
-    while ((ret = avcodec_receive_frame(input_ctx->dec_ctx,
-      input_ctx->dec_frame)) >= 0)
+    while ((ret = avcodec_receive_frame(in_ctx->dec_ctx,
+      in_ctx->dec_frame)) >= 0)
     {
       if ((ret = avcodec_send_frame(output_ctx->enc_ctx,
-        input_ctx->dec_frame)) < 0)
+        in_ctx->dec_frame)) < 0)
       {
         fprintf(stderr, "Failed to send frame to encoder.\n");
         goto end;
@@ -308,7 +309,7 @@ int main(int argc, char **argv)
   }
 
 end:
-  close_input(input_ctx);
+  close_input(in_ctx);
   close_output(output_ctx);
   av_packet_free(&pkt);
 
