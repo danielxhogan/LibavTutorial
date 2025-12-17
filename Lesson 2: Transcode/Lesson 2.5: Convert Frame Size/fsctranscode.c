@@ -203,12 +203,13 @@ void close_output(OutputContext *out_ctx)
 typedef struct FrameSizeConversionContext {
   uint8_t *sample_buffer[SAMPLE_BUFFER_LENGTH];
   int sample_buffer_capacity;
-  int nb_samples_in_buffer;
   int channels;
   int bytes_per_sample;
-  int frame_size;
-  AVFrame *frame;
   enum AVSampleFormat sample_fmt;
+  int nb_samples_in_buffer;
+
+  AVFrame *frame;
+  int frame_size;
 } FrameSizeConversionContext;
 
 FrameSizeConversionContext *fsc_ctx_alloc(AVCodecContext *enc_ctx)
@@ -222,17 +223,18 @@ FrameSizeConversionContext *fsc_ctx_alloc(AVCodecContext *enc_ctx)
   }
 
   fsc_ctx->sample_buffer_capacity = 0;
-  fsc_ctx->nb_samples_in_buffer = 0;
   fsc_ctx->channels = enc_ctx->ch_layout.nb_channels;
   fsc_ctx->bytes_per_sample =
     av_get_bytes_per_sample(enc_ctx->sample_fmt) * fsc_ctx->channels;
   fsc_ctx->sample_fmt = enc_ctx->sample_fmt;
-  fsc_ctx->frame_size = enc_ctx->frame_size;
+  fsc_ctx->nb_samples_in_buffer = 0;
 
   if (!(fsc_ctx->frame = av_frame_alloc())) {
     fprintf(stderr, "Failed to allocate AVFrame.\n");
     return NULL;
   }
+
+  fsc_ctx->frame_size = enc_ctx->frame_size;
 
   fsc_ctx->frame->format = enc_ctx->sample_fmt;
   av_channel_layout_copy(&fsc_ctx->frame->ch_layout, &enc_ctx->ch_layout);
@@ -338,14 +340,13 @@ int fsc_ctx_make_frame(FrameSizeConversionContext *fsc_ctx)
     return -1;
   }
 
-  ret = av_samples_copy(fsc_ctx->frame->data, fsc_ctx->sample_buffer, 0, 0,
-    fsc_ctx->frame_size, fsc_ctx->channels,
-    fsc_ctx->sample_fmt);
-
-  if (ret < 0) {
+  if ((ret = av_samples_copy(fsc_ctx->frame->data, fsc_ctx->sample_buffer, 0, 0,
+    fsc_ctx->frame_size, fsc_ctx->channels, fsc_ctx->sample_fmt)) < 0)
+  {
     fprintf(stderr, "Failed to copy samples from buffer into encoder frame.\n");
     return ret;
-  }
+    }
+
 
   new_first_sample =
     fsc_ctx->sample_buffer[0] +
