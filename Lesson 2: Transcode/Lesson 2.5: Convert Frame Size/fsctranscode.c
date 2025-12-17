@@ -332,12 +332,12 @@ int fsc_ctx_add_samples_to_buffer(FrameSizeConversionContext *fsc_ctx,
   return ret;
 }
 
-int fsc_ctx_make_frame(FrameSizeConversionContext *fsc_ctx)
+int fsc_ctx_make_frame(FrameSizeConversionContext *fsc_ctx, int flush)
 {
   int nb_remaining_samples, ret = 0;
   uint8_t *new_first_sample;
 
-  if (fsc_ctx->nb_samples_in_buffer < fsc_ctx->frame_size) {
+  if (!flush && fsc_ctx->nb_samples_in_buffer < fsc_ctx->frame_size) {
     fprintf(stderr, "Not enough samples in buffer to make a frame.\n");
     return -1;
   }
@@ -411,7 +411,7 @@ int encode_frame(InputContext *in_ctx, OutputContext *out_ctx,
 }
 
 int convert_frame_size(InputContext *in_ctx, OutputContext *out_ctx,
-  FrameSizeConversionContext *fsc_ctx)
+  FrameSizeConversionContext *fsc_ctx, int flush)
 {
   int ret = 0;
 
@@ -424,10 +424,11 @@ int convert_frame_size(InputContext *in_ctx, OutputContext *out_ctx,
 
   while (fsc_ctx->nb_samples_in_buffer >= out_ctx->enc_ctx->frame_size)
   {
-    if ((ret = fsc_ctx_make_frame(fsc_ctx)) < 0) {
+    if ((ret = fsc_ctx_make_frame(fsc_ctx, flush)) < 0) {
       fprintf(stderr, "Failed to make frame for encoder.\n");
       return ret;
     }
+
 
     if ((ret = encode_frame(in_ctx, out_ctx, fsc_ctx)) < 0) {
       fprintf(stderr, "Failed to encode frame.\n");
@@ -451,7 +452,7 @@ int decode_packet(InputContext *in_ctx, OutputContext *out_ctx,
   while ((ret =
     avcodec_receive_frame(in_ctx->dec_ctx, in_ctx->dec_frame)) >= 0)
   {
-    if ((ret = convert_frame_size(in_ctx, out_ctx, fsc_ctx)) < 0) {
+    if ((ret = convert_frame_size(in_ctx, out_ctx, fsc_ctx, 0)) < 0) {
       fprintf(stderr, "Failed to convert frame size.\n");
       return ret;
     }
@@ -535,8 +536,20 @@ int main(int argc, char **argv)
     goto end;
   }
 
-  if ((ret = avcodec_send_frame(out_ctx->enc_ctx, NULL)) < 0) {
-    fprintf(stderr, "Failed to send frame to encoder.\n");
+  in_ctx->init_pkt = NULL;
+  if ((ret = decode_packet(in_ctx, out_ctx, fsc_ctx)) < 0) {
+    fprintf(stderr, "Failed to flush decoder.\n");
+    goto end;
+  }
+
+  if ((ret = convert_frame_size(in_ctx, out_ctx, fsc_ctx, 1)) < 0) {
+    fprintf(stderr, "Failed to flush frame size converter.\n");
+    goto end;
+  }
+
+  fsc_ctx->frame = NULL;
+  if ((ret = encode_frame(in_ctx, out_ctx, fsc_ctx)) < 0) {
+    fprintf(stderr, "Failed to flush encoder.\n");
     goto end;
   }
 
