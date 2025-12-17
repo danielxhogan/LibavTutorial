@@ -210,6 +210,7 @@ typedef struct FrameSizeConversionContext {
 
   AVFrame *frame;
   int frame_size;
+  int64_t nb_samples_framed;
 } FrameSizeConversionContext;
 
 FrameSizeConversionContext *fsc_ctx_alloc(AVCodecContext *enc_ctx)
@@ -235,6 +236,7 @@ FrameSizeConversionContext *fsc_ctx_alloc(AVCodecContext *enc_ctx)
   }
 
   fsc_ctx->frame_size = enc_ctx->frame_size;
+  fsc_ctx->nb_samples_framed = 0;
 
   fsc_ctx->frame->format = enc_ctx->sample_fmt;
   av_channel_layout_copy(&fsc_ctx->frame->ch_layout, &enc_ctx->ch_layout);
@@ -347,6 +349,8 @@ int fsc_ctx_make_frame(FrameSizeConversionContext *fsc_ctx)
     return ret;
     }
 
+  fsc_ctx->frame->pts = fsc_ctx->nb_samples_framed;
+  fsc_ctx->nb_samples_framed += fsc_ctx->frame->nb_samples;
 
   new_first_sample =
     fsc_ctx->sample_buffer[0] +
@@ -386,6 +390,9 @@ int encode_frame(InputContext *in_ctx, OutputContext *out_ctx,
     avcodec_receive_packet(out_ctx->enc_ctx, out_ctx->enc_pkt)) >= 0)
   {
     out_ctx->enc_pkt->stream_index = 0;
+
+    av_packet_rescale_ts(out_ctx->enc_pkt,
+      out_ctx->enc_ctx->time_base, out_ctx->fmt_ctx->streams[0]->time_base);
 
     if ((ret =
       av_interleaved_write_frame(out_ctx->fmt_ctx, out_ctx->enc_pkt)) < 0)
