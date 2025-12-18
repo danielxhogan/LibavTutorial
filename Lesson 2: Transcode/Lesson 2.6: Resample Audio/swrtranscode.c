@@ -266,8 +266,8 @@ typedef struct OutputContext {
   AVPacket *enc_pkt;
 } OutputContext;
 
-OutputContext *open_output(InputContext *in_ctx,
-  const char *codec, const char *out_filename)
+OutputContext *open_output(InputContext *in_ctx, const char *codec,
+  const char *out_filename, AVChannelLayout *preferred_layout)
 {
   OutputContext *out_ctx;
   AVStream *in_stream, *out_stream;
@@ -292,9 +292,16 @@ OutputContext *open_output(InputContext *in_ctx,
     return NULL;
   }
 
-  if (select_channel_layout(out_ctx->enc_ctx, &in_ctx->dec_ctx->ch_layout) < 0) {
-    fprintf(stderr, "Failed to select channel layout.\n");
-    return NULL;
+  if (preferred_layout) {
+    if (select_channel_layout(out_ctx->enc_ctx, preferred_layout) < 0) {
+      fprintf(stderr, "Failed to select channel layout.\n");
+      return NULL;
+    }
+  } else {
+    if (select_channel_layout(out_ctx->enc_ctx, &in_ctx->dec_ctx->ch_layout) < 0) {
+      fprintf(stderr, "Failed to select channel layout.\n");
+      return NULL;
+    }
   }
 
   if (select_sample_fmt(out_ctx->enc_ctx, in_ctx->dec_ctx->sample_fmt) < 0) {
@@ -304,7 +311,7 @@ OutputContext *open_output(InputContext *in_ctx,
 
   out_ctx->enc_ctx->sample_rate = in_ctx->dec_ctx->sample_rate;
   out_ctx->enc_ctx->time_base = (AVRational) {1, out_ctx->enc_ctx->sample_rate};
-  out_ctx->enc_ctx->bit_rate = in_ctx->dec_ctx->bit_rate;
+  out_ctx->enc_ctx->bit_rate = 192000;
 
   if (avcodec_open2(out_ctx->enc_ctx, enc, NULL) < 0) {
     fprintf(stderr, "Failed to open encoder.\n");
@@ -766,7 +773,8 @@ int main(int argc, char **argv)
   OutputContext *out_ctx = NULL;
 
   FrameSizeConversionContext *fsc_ctx = NULL;
-  SwrOutputContext *swr_out_ctx;
+  SwrOutputContext *swr_out_ctx = NULL;
+  AVChannelLayout *stereo = NULL;
 
   if (argc != 4) {
     printf("\nUsage: %s <input file> <output file> <codec>\n\n\t"
@@ -786,10 +794,20 @@ int main(int argc, char **argv)
   }
 
   if (!(out_ctx = open_output(in_ctx,
-    codec, out_filename)))
+    codec, out_filename, NULL)))
   {
     fprintf(stderr, "Failed to open output.\n");
-    goto end;
+    close_output(out_ctx);
+
+    AVChannelLayout *stereo = malloc(sizeof(AVChannelLayout));
+    av_channel_layout_default(stereo, 2);
+
+    if (!(out_ctx = open_output(in_ctx,
+      codec, out_filename, stereo)))
+    {
+      fprintf(stderr, "Failed to open output with stereo layout.\n");
+      goto end;
+    }
   }
 
   if (!(fsc_ctx = fsc_ctx_alloc(out_ctx->enc_ctx))) {
@@ -835,6 +853,7 @@ end:
   close_output(out_ctx);
   fsc_ctx_free(fsc_ctx);
   swr_output_context_free(swr_out_ctx);
+  free(stereo);
 
   if (ret < 0 && ret != AVERROR(EAGAIN) && ret != AVERROR_EOF) {
     fprintf(stderr, "\nLibav Error: %s\n", av_err2str(ret));
