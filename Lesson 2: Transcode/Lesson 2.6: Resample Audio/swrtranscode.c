@@ -803,8 +803,8 @@ int main(int argc, char **argv)
     fprintf(stderr, "Failed to open output.\n");
     close_output(out_ctx);
 
-    AVChannelLayout *stereo = malloc(sizeof(AVChannelLayout));
-    av_channel_layout_default(stereo, 2);
+    stereo = malloc(sizeof(AVChannelLayout));
+    av_channel_layout_from_string(stereo, "stereo");
 
     if (!(out_ctx = open_output(in_ctx,
       codec, out_filename, stereo)))
@@ -857,6 +857,7 @@ end:
   close_output(out_ctx);
   fsc_ctx_free(fsc_ctx);
   swr_output_context_free(swr_out_ctx);
+  av_channel_layout_uninit(stereo);
   free(stereo);
 
   if (ret < 0 && ret != AVERROR(EAGAIN) && ret != AVERROR_EOF) {
