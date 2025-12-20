@@ -311,7 +311,11 @@ OutputContext *open_output(InputContext *in_ctx, const char *codec,
 
   out_ctx->enc_ctx->sample_rate = in_ctx->dec_ctx->sample_rate;
   out_ctx->enc_ctx->time_base = (AVRational) {1, out_ctx->enc_ctx->sample_rate};
-  out_ctx->enc_ctx->bit_rate = 192000;
+
+  if (in_ctx->dec_ctx->bit_rate > 0)
+    out_ctx->enc_ctx->bit_rate = in_ctx->dec_ctx->bit_rate;
+  else
+    out_ctx->enc_ctx->bit_rate = 224000;
 
   if (avcodec_open2(out_ctx->enc_ctx, enc, NULL) < 0) {
     fprintf(stderr, "Failed to open encoder.\n");
