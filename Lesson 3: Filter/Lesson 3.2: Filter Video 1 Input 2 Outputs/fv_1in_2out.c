@@ -133,7 +133,7 @@ typedef struct OutputContext {
 
 int enc_ctx_init(AVCodecContext **enc_ctx,
   AVStream *in_stream, int width, int height,
-  const char *codec, char *enc_params, char *enc_params_opt)
+  const char *codec, char *enc_params, char *enc_params_opt, int tonemap)
 {
   int ret = 0;
   const AVCodec *enc;
@@ -150,18 +150,30 @@ int enc_ctx_init(AVCodecContext **enc_ctx,
     return ret;
   }
 
+
   (*enc_ctx)->time_base = in_stream->time_base;
   (*enc_ctx)->framerate = in_stream->avg_frame_rate;
 
   (*enc_ctx)->width = width;
   (*enc_ctx)->height = height;
-  (*enc_ctx)->pix_fmt = in_stream->codecpar->format;
 
-  (*enc_ctx)->color_primaries = in_stream->codecpar->color_primaries;
-  (*enc_ctx)->color_trc = in_stream->codecpar->color_trc;
-  (*enc_ctx)->colorspace = in_stream->codecpar->color_space;
-  (*enc_ctx)->color_range = in_stream->codecpar->color_range;
-  (*enc_ctx)->chroma_sample_location = in_stream->codecpar->chroma_location;
+  if (tonemap) {
+    (*enc_ctx)->profile = AV_PROFILE_HEVC_MAIN;
+    (*enc_ctx)->pix_fmt = AV_PIX_FMT_YUV420P;
+    (*enc_ctx)->color_range = AVCOL_RANGE_MPEG;
+    (*enc_ctx)->color_primaries = AVCOL_PRI_BT709;
+    (*enc_ctx)->color_trc = AVCOL_TRC_BT709;
+    (*enc_ctx)->colorspace = AVCOL_SPC_BT709;
+    (*enc_ctx)->chroma_sample_location = AVCHROMA_LOC_LEFT;
+  }
+  else {
+    (*enc_ctx)->pix_fmt = in_stream->codecpar->format;
+    (*enc_ctx)->color_range = in_stream->codecpar->color_range;
+    (*enc_ctx)->color_primaries = in_stream->codecpar->color_primaries;
+    (*enc_ctx)->color_trc = in_stream->codecpar->color_trc;
+    (*enc_ctx)->colorspace = in_stream->codecpar->color_space;
+    (*enc_ctx)->chroma_sample_location = in_stream->codecpar->chroma_location;
+  }
 
   (*enc_ctx)->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
 
@@ -240,7 +252,7 @@ OutputContext *open_output(InputContext *in_ctx, int width, int height,
 
   if ((ret = enc_ctx_init(&out_ctx->enc_ctx1, in_stream,
     in_stream->codecpar->width, in_stream->codecpar->height,
-    codec, enc_params, enc_params_opt)) < 0)
+    codec, enc_params, enc_params_opt, 0)) < 0)
   {
     fprintf(stderr,
       "Failed to initialize encoder context for first encoder.\n");
@@ -249,7 +261,7 @@ OutputContext *open_output(InputContext *in_ctx, int width, int height,
 
   if ((ret = enc_ctx_init(&out_ctx->enc_ctx2, in_stream,
     width, height,
-    codec, enc_params, enc_params_opt)) < 0)
+    codec, enc_params, enc_params_opt, 1)) < 0)
   {
     fprintf(stderr,
       "Failed to initialize encoder context for second encoder.\n");
@@ -326,10 +338,10 @@ typedef struct FilterContext {
 } FilterContext;
 
 int buffersink_ctx_init(AVFilterContext **buffersink_ctx,
-  AVFilterGraph *filter_graph, AVStream *in_stream)
+  AVFilterGraph *filter_graph, AVStream *in_stream, const char *pix_fmt)
 {
   int ret = 0;
-  const char *pix_fmt;
+  // const char *pix_fmt;
   const AVFilter *buffersink = avfilter_get_by_name("buffersink");
 
   if (!(*buffersink_ctx =
@@ -340,7 +352,7 @@ int buffersink_ctx_init(AVFilterContext **buffersink_ctx,
     return ret;
   }
 
-  pix_fmt = av_get_pix_fmt_name(in_stream->codecpar->format);
+  // pix_fmt = av_get_pix_fmt_name(in_stream->codecpar->format);
 
   if ((ret = av_opt_set(*buffersink_ctx, "pixel_formats",
     pix_fmt, AV_OPT_SEARCH_CHILDREN)))
@@ -415,14 +427,14 @@ FilterContext *filter_context_init(InputContext *in_ctx, char *filter_descr)
   }
 
   if ((ret = buffersink_ctx_init(&flt_ctx->buffersink_ctx1,
-    flt_ctx->filter_graph, in_stream)) < 0)
+    flt_ctx->filter_graph, in_stream, "yuv420p10le")) < 0)
   {
     fprintf(stderr, "Failed to initialize first buffer sink context.\n");
     goto end;
   }
 
   if ((ret = buffersink_ctx_init(&flt_ctx->buffersink_ctx2,
-    flt_ctx->filter_graph, in_stream)) < 0)
+    flt_ctx->filter_graph, in_stream, "yuv420p")) < 0)
   {
     fprintf(stderr, "Failed to initialize first buffer sink context.\n");
     goto end;
@@ -484,7 +496,7 @@ void filter_context_free(FilterContext *flt_ctx)
   free(flt_ctx);
 }
 
-#define OUTPUT_PIX_FMT AV_PIX_FMT_YUV420P10LE
+#define OUTPUT_PIX_FMT AV_PIX_FMT_YUV420P
 #define OUTPUT_SCALE_ALGO SWS_BICUBIC
 
 typedef struct SwsOutputContext {
@@ -668,6 +680,8 @@ int decode_packet(InputContext *in_ctx, AVStream *in_stream,
 
   while ((ret = avcodec_receive_frame(in_ctx->dec_ctx, in_ctx->dec_frame)) >= 0)
   {
+    in_ctx->dec_frame->pict_type = AV_PICTURE_TYPE_NONE;
+
     if ((ret = filter_frame(in_ctx, in_stream, out_ctx, flt_ctx, sws_out_ctx)) < 0) {
       fprintf(stderr, "Failed to filter frame.\n");
       return ret;
