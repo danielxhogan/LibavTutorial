@@ -691,7 +691,6 @@ int convert_frame_size(InputContext *in_ctx, OutputContext *out_ctx,
       return ret;
     }
 
-
     if ((ret = encode_frame(in_ctx, out_ctx, fsc_ctx)) < 0) {
       fprintf(stderr, "Failed to encode frame.\n");
       return ret;
@@ -729,7 +728,9 @@ int decode_packet(InputContext *in_ctx, OutputContext *out_ctx,
       return ret;
     }
 
-    if ((ret = convert_frame_size(in_ctx, out_ctx, fsc_ctx, swr_out_ctx, 0)) < 0) {
+    if ((ret = convert_frame_size(in_ctx, out_ctx,
+      fsc_ctx, swr_out_ctx, 0)) < 0)
+    {
       fprintf(stderr, "Failed to convert frame size.\n");
       return ret;
     }

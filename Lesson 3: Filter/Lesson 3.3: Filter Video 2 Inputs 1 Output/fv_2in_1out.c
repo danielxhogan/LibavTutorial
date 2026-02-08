@@ -82,12 +82,12 @@ InputContext *open_input(const char *in_filename,
   if ((ret = av_dict_set(&opts, "probesize", "50000000", 0)) < 0) {
     fprintf(stderr, "Failed to set probesize option.\n");
     return NULL;
-}
+  }
 
-if ((ret = av_dict_set(&opts, "analyzeduration", "10000000", 0)) < 0) {
-    fprintf(stderr, "Failed to set analyzeduration option.\n");
-    return NULL;
-}
+  if ((ret = av_dict_set(&opts, "analyzeduration", "10000000", 0)) < 0) {
+      fprintf(stderr, "Failed to set analyzeduration option.\n");
+      return NULL;
+  }
 
   if ((ret =
     avformat_open_input(&in_ctx->fmt_ctx, in_filename, NULL, &opts)) < 0)
@@ -513,7 +513,7 @@ SubToFrameContext *sub_to_frame_context_alloc(InputContext *in_ctx)
   SubToFrameContext *sub_to_frame_ctx;
 
   if (!(sub_to_frame_ctx = malloc(sizeof(SubToFrameContext)))) {
-    fprintf(stderr, "Failed to allocate SwsOutputContext.\n");
+    fprintf(stderr, "Failed to allocate SubToFrameContext.\n");
     return NULL;
   }
 
