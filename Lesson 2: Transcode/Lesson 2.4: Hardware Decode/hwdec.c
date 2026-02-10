@@ -1,17 +1,12 @@
 #include <libavformat/avformat.h>
 #include <libavcodec/avcodec.h>
 #include <libswscale/swscale.h>
-// #include <libavutil/hwcontext.h>
 #include <libavutil/opt.h>
 
 #define OUTPUT_SCALE_ALGO SWS_BICUBIC
 
 typedef struct SwsOutputContext {
   struct SwsContext *sws_ctx;
-  // int width;
-  // int height;
-  // enum AVPixelFormat pix_fmt;
-  // int scale_algo;
   AVFrame *scaled_frame;
 } SwsOutputContext;
 
@@ -25,10 +20,6 @@ SwsOutputContext *sws_output_context_alloc(AVCodecContext *dec_ctx,
     return NULL;
   }
 
-  // sws_out_ctx->width = width;
-  // sws_out_ctx->height = height;
-  // sws_out_ctx->pix_fmt = pix_fmt;
-  // sws_out_ctx->scale_algo = scale_algo;
   sws_out_ctx->scaled_frame = NULL;
 
   if (!(sws_out_ctx->sws_ctx = sws_getContext(
@@ -88,7 +79,6 @@ typedef struct InputContext {
   AVFormatContext *fmt_ctx;
   AVCodecContext *dec_ctx;
   enum AVHWDeviceType hwdev_type;
-  AVBufferRef *hwdev_ctx;
   AVPacket *init_pkt;
   AVFrame *hw_frame;
   AVFrame *sw_frame;
@@ -112,8 +102,9 @@ enum AVPixelFormat get_hw_fmt(AVCodecContext *dec_ctx, const enum AVPixelFormat 
 int hw_decoder_init(InputContext *in_ctx)
 {
   int ret = 0;
+  AVBufferRef *hwdev_ctx;
 
-  if ((ret = av_hwdevice_ctx_create(&in_ctx->hwdev_ctx,
+  if ((ret = av_hwdevice_ctx_create(&hwdev_ctx,
     in_ctx->hwdev_type, NULL, NULL, 0)) < 0)
   {
     fprintf(stderr, "Failed to create hardware device context.\n"
@@ -121,7 +112,7 @@ int hw_decoder_init(InputContext *in_ctx)
     return ret;
   }
 
-  in_ctx->dec_ctx->hw_device_ctx = av_buffer_ref(in_ctx->hwdev_ctx);
+  in_ctx->dec_ctx->hw_device_ctx = av_buffer_ref(hwdev_ctx);
   return 0;
 }
 
@@ -142,7 +133,6 @@ InputContext *open_input(const char *in_filename, unsigned int stream_idx, char 
   in_ctx->fmt_ctx = NULL;
   in_ctx->dec_ctx = NULL;
   in_ctx->hwdev_type = AV_HWDEVICE_TYPE_NONE;
-  in_ctx->hwdev_ctx = NULL;
   in_ctx->init_pkt = NULL;
   in_ctx->hw_frame = NULL;
   in_ctx->sw_frame = NULL;
@@ -172,7 +162,7 @@ InputContext *open_input(const char *in_filename, unsigned int stream_idx, char 
   if (in_ctx->hwdev_type == AV_HWDEVICE_TYPE_NONE)
   {
     fprintf(stderr, "Device type %s is not supported.\n", hwdev_name);
-    fprintf(stderr, "Available device types:");
+    fprintf(stderr, "Available device types:\n");
 
     while((in_ctx->hwdev_type =
       av_hwdevice_iterate_types(in_ctx->hwdev_type)) != AV_HWDEVICE_TYPE_NONE)
@@ -189,9 +179,9 @@ InputContext *open_input(const char *in_filename, unsigned int stream_idx, char 
     return NULL;
   }
 
-  for (int i = 0;; i++) {
-    if(!(config = avcodec_get_hw_config(dec, i)))
-    {
+  for (int i = 0;; i++)
+  {
+    if(!(config = avcodec_get_hw_config(dec, i))) {
       fprintf(stderr, "Decoder %s does not support device type %s.\n",
         dec->name, av_hwdevice_get_type_name(in_ctx->hwdev_type));
       return NULL;
@@ -469,6 +459,7 @@ int decode_packet(InputContext *in_ctx, AVStream *in_stream,
 {
   int ret = 0;
 
+
   if ((ret = avcodec_send_packet(in_ctx->dec_ctx, in_ctx->init_pkt)) < 0) {
     fprintf(stderr, "Failed to send packet to decoder.\n");
     return ret;
@@ -482,6 +473,12 @@ int decode_packet(InputContext *in_ctx, AVStream *in_stream,
       fprintf(stderr, "Failed to transfer hardware frame to software frame.\n"
         "Libav Error: %s.\n", av_err2str(ret));
     }
+    if (in_ctx->hw_frame->pts < 0) {
+      in_ctx->sw_frame->pts = in_ctx->hw_frame->pkt_dts;
+    } else {
+      in_ctx->sw_frame->pts = in_ctx->hw_frame->pts;
+    }
+    in_ctx->sw_frame->pkt_dts = in_ctx->hw_frame->pkt_dts;
 
     if (!*sws_out_ctx) {
       if (!(*sws_out_ctx = sws_output_context_alloc(in_ctx->dec_ctx,
