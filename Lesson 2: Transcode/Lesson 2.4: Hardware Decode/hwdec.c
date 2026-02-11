@@ -3,6 +3,9 @@
 #include <libswscale/swscale.h>
 #include <libavutil/opt.h>
 
+enum AVHWDeviceType hwdev_type;
+static AVBufferRef *hw_device_ctx = NULL;
+
 #define OUTPUT_SCALE_ALGO SWS_BICUBIC
 
 typedef struct SwsOutputContext {
@@ -78,7 +81,6 @@ void sws_output_context_free(SwsOutputContext *sws_out_ctx)
 typedef struct InputContext {
   AVFormatContext *fmt_ctx;
   AVCodecContext *dec_ctx;
-  enum AVHWDeviceType hwdev_type;
   AVPacket *init_pkt;
   AVFrame *hw_frame;
   AVFrame *sw_frame;
@@ -99,24 +101,8 @@ enum AVPixelFormat get_hw_fmt(AVCodecContext *dec_ctx, const enum AVPixelFormat 
   return AV_PIX_FMT_NONE;
 }
 
-int hw_decoder_init(InputContext *in_ctx)
-{
-  int ret = 0;
-  AVBufferRef *hwdev_ctx;
-
-  if ((ret = av_hwdevice_ctx_create(&hwdev_ctx,
-    in_ctx->hwdev_type, NULL, NULL, 0)) < 0)
-  {
-    fprintf(stderr, "Failed to create hardware device context.\n"
-      "Libav Error: %s.\n", av_err2str(ret));
-    return ret;
-  }
-
-  in_ctx->dec_ctx->hw_device_ctx = av_buffer_ref(hwdev_ctx);
-  return 0;
-}
-
-InputContext *open_input(const char *in_filename, unsigned int stream_idx, char *hwdev_name)
+InputContext *open_input(const char *in_filename,
+  unsigned int stream_idx, char *hwdev_name)
 {
   int ret = 0;
   InputContext *in_ctx = NULL;
@@ -132,7 +118,6 @@ InputContext *open_input(const char *in_filename, unsigned int stream_idx, char 
 
   in_ctx->fmt_ctx = NULL;
   in_ctx->dec_ctx = NULL;
-  in_ctx->hwdev_type = AV_HWDEVICE_TYPE_NONE;
   in_ctx->init_pkt = NULL;
   in_ctx->hw_frame = NULL;
   in_ctx->sw_frame = NULL;
@@ -158,21 +143,6 @@ InputContext *open_input(const char *in_filename, unsigned int stream_idx, char 
 
   in_stream = in_ctx->fmt_ctx->streams[stream_idx];
 
-  in_ctx->hwdev_type = av_hwdevice_find_type_by_name(hwdev_name);
-  if (in_ctx->hwdev_type == AV_HWDEVICE_TYPE_NONE)
-  {
-    fprintf(stderr, "Device type %s is not supported.\n", hwdev_name);
-    fprintf(stderr, "Available device types:\n");
-
-    while((in_ctx->hwdev_type =
-      av_hwdevice_iterate_types(in_ctx->hwdev_type)) != AV_HWDEVICE_TYPE_NONE)
-    {
-      fprintf(stderr, " %s\n", av_hwdevice_get_type_name(in_ctx->hwdev_type));
-    }
-
-    return NULL;
-  }
-
   if (!(dec = avcodec_find_decoder(in_stream->codecpar->codec_id))) {
     fprintf(stderr, "Failed to find decoder for stream: '%d'.\n", stream_idx);
     ret = AVERROR(EINVAL);
@@ -183,13 +153,13 @@ InputContext *open_input(const char *in_filename, unsigned int stream_idx, char 
   {
     if(!(config = avcodec_get_hw_config(dec, i))) {
       fprintf(stderr, "Decoder %s does not support device type %s.\n",
-        dec->name, av_hwdevice_get_type_name(in_ctx->hwdev_type));
+        dec->name, av_hwdevice_get_type_name(hwdev_type));
       return NULL;
     }
 
     if (
       config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX &&
-      config->device_type == in_ctx->hwdev_type
+      config->device_type == hwdev_type
     ) {
       hw_pix_fmt = config->pix_fmt;
       break;
@@ -206,18 +176,18 @@ InputContext *open_input(const char *in_filename, unsigned int stream_idx, char 
   if ((ret = avcodec_parameters_to_context(in_ctx->dec_ctx,
     in_stream->codecpar)) < 0)
   {
-    fprintf(stderr,
-      "Failed to copy parameters from input stream: '%d' to decoder.\n",
-      stream_idx);
+    fprintf(stderr, "Failed to copy parameters from "
+      "input stream: '%d' to decoder.\n", stream_idx);
+    return NULL;
+  }
+
+  if (!(in_ctx->dec_ctx->hw_device_ctx = av_buffer_ref(hw_device_ctx))) {
+    fprintf(stderr, "Failed to create reference between decoder "
+      "context and hardware device context.\n");
     return NULL;
   }
 
   in_ctx->dec_ctx->get_format = get_hw_fmt;
-
-  if (hw_decoder_init(in_ctx) < 0) {
-    fprintf(stderr, "Failed to initialze hardware decoder.\n");
-    return NULL;
-  }
 
   if ((ret = avcodec_open2(in_ctx->dec_ctx, dec, NULL)) < 0) {
     fprintf(stderr, "Failed to open decoder for stream: '%d'.\n",
@@ -251,9 +221,9 @@ void close_input(InputContext *in_ctx)
   if (!in_ctx) return;
   avformat_close_input(&in_ctx->fmt_ctx);
   avcodec_free_context(&in_ctx->dec_ctx);
+  av_packet_free(&in_ctx->init_pkt);
   av_frame_free(&in_ctx->hw_frame);
   av_frame_free(&in_ctx->sw_frame);
-  av_packet_free(&in_ctx->init_pkt);
   free(in_ctx);
 }
 
@@ -473,6 +443,7 @@ int decode_packet(InputContext *in_ctx, AVStream *in_stream,
       fprintf(stderr, "Failed to transfer hardware frame to software frame.\n"
         "Libav Error: %s.\n", av_err2str(ret));
     }
+
     if (in_ctx->hw_frame->pts < 0) {
       in_ctx->sw_frame->pts = in_ctx->hw_frame->pkt_dts;
     } else {
@@ -521,7 +492,9 @@ int transcode(InputContext *in_ctx, AVStream *in_stream,
       continue;
     }
 
-    if ((ret = decode_packet(in_ctx, in_stream, sws_out_ctx, out_ctx, out_stream)) < 0) {
+    if ((ret = decode_packet(in_ctx, in_stream,
+      sws_out_ctx, out_ctx, out_stream)) < 0)
+    {
       fprintf(stderr, "Failed to decode packet.\n");
       return ret;
     }
@@ -541,8 +514,8 @@ int main(int argc, char **argv)
   char *in_filename, *out_filename, *hw_dev_name, *codec,
     *enc_params = NULL, *enc_params_opt = NULL;
   InputContext *in_ctx = NULL;
-  OutputContext *out_ctx = NULL;
   SwsOutputContext *sws_out_ctx = NULL;
+  OutputContext *out_ctx = NULL;
   AVStream *in_stream, *out_stream;
 
   if (argc != 5 && argc != 6) {
@@ -568,6 +541,29 @@ int main(int argc, char **argv)
       fprintf(stderr, "Failed to initialize encoder option params.\n");
       return -1;
     }
+  }
+
+  hwdev_type = av_hwdevice_find_type_by_name(hw_dev_name);
+  if (hwdev_type == AV_HWDEVICE_TYPE_NONE)
+  {
+    fprintf(stderr, "Device type %s is not supported.\n", hw_dev_name);
+    fprintf(stderr, "Available device types:\n");
+
+    while((hwdev_type =
+      av_hwdevice_iterate_types(hwdev_type)) != AV_HWDEVICE_TYPE_NONE)
+    {
+      fprintf(stderr, " %s\n", av_hwdevice_get_type_name(hwdev_type));
+    }
+
+    goto end;
+  }
+
+  if ((ret = av_hwdevice_ctx_create(&hw_device_ctx,
+    hwdev_type, NULL, NULL, 0)) < 0)
+  {
+    fprintf(stderr, "Failed to create hardware device context.\n"
+      "Libav Error: %s.\n", av_err2str(ret));
+    goto end;
   }
 
   if (!(in_ctx = open_input(in_filename, 0, hw_dev_name))) {
