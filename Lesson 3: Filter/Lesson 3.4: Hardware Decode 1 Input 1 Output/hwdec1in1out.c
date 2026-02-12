@@ -711,6 +711,7 @@ end:
   filter_context_free(flt_ctx);
   close_input(in_ctx);
   close_output(out_ctx);
+  av_buffer_unref(&hw_device_ctx);
 
   if (ret < 0 && ret != AVERROR_EOF && ret != AVERROR(EAGAIN)) {
     fprintf(stderr, "\nLibav Error: %s\n", av_err2str(ret));

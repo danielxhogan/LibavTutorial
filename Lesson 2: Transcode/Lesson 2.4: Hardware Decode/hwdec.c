@@ -89,7 +89,8 @@ typedef struct InputContext {
 
 static enum AVPixelFormat hw_pix_fmt;
 
-enum AVPixelFormat get_hw_fmt(AVCodecContext *dec_ctx, const enum AVPixelFormat *pix_fmts)
+enum AVPixelFormat get_hw_fmt(AVCodecContext *dec_ctx,
+  const enum AVPixelFormat *pix_fmts)
 {
   const enum AVPixelFormat *pix_fmt;
 
@@ -573,8 +574,8 @@ int main(int argc, char **argv)
 
   in_stream = in_ctx->fmt_ctx->streams[in_ctx->stream_idx];
 
-  if (!(out_ctx =
-    open_output(in_ctx, codec, enc_params, enc_params_opt, out_filename)))
+  if (!(out_ctx = open_output(in_ctx, codec,
+    enc_params, enc_params_opt, out_filename)))
   {
     fprintf(stderr, "Failed to open output file: '%s'.\n", out_filename);
     goto end;
@@ -607,6 +608,7 @@ int main(int argc, char **argv)
 end:
   close_input(in_ctx);
   close_output(out_ctx);
+  av_buffer_unref(&hw_device_ctx);
 
   if (ret < 0 && ret != AVERROR_EOF && ret != AVERROR(EAGAIN)) {
     fprintf(stderr, "\nLibav Error: %s.\n", av_err2str(ret));
