@@ -324,6 +324,7 @@ OutputContext *open_output(InputContext *in_ctx,
   {
     fprintf(stderr, "Failed to get buffer for hardware frame."
       "\nLibav Error: %s.\n", av_err2str(ret));
+    return NULL;
   }
 
   if (!(out_ctx->enc_pkt = av_packet_alloc())) {
